@@ -123,7 +123,7 @@ export default function AdminUsersPage() {
             <div className="space-y-1.5"><Label>SĐT</Label><Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="h-10 rounded-xl" /></div>
             <div className="space-y-1.5"><Label>Mật khẩu *</Label><Input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className="h-10 rounded-xl" /></div>
             <div className="space-y-1.5"><Label>Vai trò</Label>
-              <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v })}>
+              <Select value={form.role} onValueChange={(v: string | null) => v && setForm({ ...form, role: v })}>
                 <SelectTrigger className="h-10 rounded-xl"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="admin">Admin</SelectItem>

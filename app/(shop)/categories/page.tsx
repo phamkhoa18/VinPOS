@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
@@ -108,7 +108,7 @@ export default function CategoriesPage() {
             <div className="space-y-1.5"><Label>Tên *</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="h-10 rounded-lg" /></div>
             <div className="space-y-1.5">
               <Label>Biểu tượng</Label>
-              <Select value={form.icon} onValueChange={(v) => setForm({ ...form, icon: v })}>
+              <Select value={form.icon} onValueChange={(v: string | null) => v && setForm({ ...form, icon: v })}>
                 <SelectTrigger className="h-10 rounded-lg"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {availableIcons.map((ic) => {

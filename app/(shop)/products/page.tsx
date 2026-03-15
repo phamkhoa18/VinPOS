@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
@@ -168,7 +168,7 @@ export default function ProductsPage() {
             className="pl-10 h-11 bg-white rounded-lg border-gray-200"
           />
         </div>
-        <Select value={filterCategory} onValueChange={setFilterCategory}>
+        <Select value={filterCategory} onValueChange={(v: string | null) => v !== null && setFilterCategory(v)}>
           <SelectTrigger className="w-full sm:w-48 h-11 rounded-lg bg-white border-gray-200">
             <Filter className="w-4 h-4 text-gray-400 mr-2" />
             <SelectValue placeholder="Danh mục" />
@@ -293,7 +293,7 @@ export default function ProductsPage() {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label>Danh mục *</Label>
-                <Select value={form.categoryId} onValueChange={(v) => setForm({ ...form, categoryId: v })}>
+                <Select value={form.categoryId} onValueChange={(v: string | null) => v && setForm({ ...form, categoryId: v })}>
                   <SelectTrigger className="h-10 rounded-lg"><SelectValue placeholder="Chọn danh mục" /></SelectTrigger>
                   <SelectContent>
                     {categories.map((c) => (
@@ -304,7 +304,7 @@ export default function ProductsPage() {
               </div>
               <div className="space-y-1.5">
                 <Label>Biểu tượng</Label>
-                <Select value={form.image} onValueChange={(v) => setForm({ ...form, image: v })}>
+                <Select value={form.image} onValueChange={(v: string | null) => v && setForm({ ...form, image: v })}>
                   <SelectTrigger className="h-10 rounded-lg"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {availableIcons.map((ic) => {

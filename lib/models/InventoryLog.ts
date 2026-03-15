@@ -1,4 +1,4 @@
-import mongoose, { Schema, type Document } from 'mongoose';
+﻿import mongoose, { Schema, type Document } from 'mongoose';
 
 export interface IInventoryLog extends Document {
   _id: mongoose.Types.ObjectId;
@@ -45,7 +45,7 @@ const InventoryLogSchema = new Schema<IInventoryLog>(
   {
     timestamps: true,
     toJSON: {
-      transform: (_doc, ret) => {
+      transform: (_doc: any, ret: any) => {
         ret.id = ret._id.toString();
         delete ret._id;
         delete ret.__v;

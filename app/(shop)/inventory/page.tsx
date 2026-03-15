@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
@@ -162,7 +162,7 @@ export default function InventoryPage() {
           <div className="space-y-4 mt-2">
             <div className="space-y-1.5">
               <Label>Sản phẩm *</Label>
-              <Select value={selectedProduct} onValueChange={setSelectedProduct}>
+              <Select value={selectedProduct} onValueChange={(v: string | null) => v !== null && setSelectedProduct(v)}>
                 <SelectTrigger className="h-10 rounded-xl"><SelectValue placeholder="Chọn sản phẩm" /></SelectTrigger>
                 <SelectContent>{products.map((p) => (<SelectItem key={p.id} value={p.id}>{p.name} (Kho: {p.stock})</SelectItem>))}</SelectContent>
               </Select>

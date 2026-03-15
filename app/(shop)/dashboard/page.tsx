@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
@@ -176,7 +176,7 @@ export default function DashboardPage() {
                     <XAxis dataKey="date" fontSize={12} tick={{ fill: '#64748B' }} />
                     <YAxis fontSize={12} tick={{ fill: '#64748B' }} tickFormatter={(v) => `${v}M`} />
                     <Tooltip
-                      formatter={(value: number) => [`${value.toFixed(1)}M VNĐ`, 'Doanh thu']}
+                      formatter={(value: any) => [`${value.toFixed(1)}M VNĐ`, 'Doanh thu']}
                       contentStyle={{ fontSize: 12, borderRadius: 12, border: '1px solid #E2E8F0' }}
                     />
                     <Area

@@ -319,13 +319,13 @@ export default function ReportsPage() {
                         <YAxis yAxisId="left" fontSize={11} tick={{ fill: '#64748B' }} tickFormatter={v => `${(v / 1000000).toFixed(0)}M`} />
                         <YAxis yAxisId="right" orientation="right" fontSize={11} tick={{ fill: '#64748B' }} />
                         <Tooltip
-                          formatter={(value: number, name: string) => [
+                          formatter={(value: any, name: any) => [
                             name === 'revenue' ? formatCurrency(value) : name === 'profit' ? formatCurrency(value) : value,
                             name === 'revenue' ? 'Doanh thu' : name === 'orders' ? 'Đơn hàng' : 'Lợi nhuận'
                           ]}
                           contentStyle={{ fontSize: 12, borderRadius: 10, border: '1px solid #E2E8F0' }}
                         />
-                        <Legend formatter={(value: string) => value === 'revenue' ? 'Doanh thu' : value === 'orders' ? 'Đơn hàng' : 'Lợi nhuận'} />
+                        <Legend formatter={(value: any) => value === 'revenue' ? 'Doanh thu' : value === 'orders' ? 'Đơn hàng' : 'Lợi nhuận'} />
                         <Area yAxisId="left" type="monotone" dataKey="revenue" stroke="#2563EB" fill="url(#colorRev)" strokeWidth={2} />
                         <Bar yAxisId="right" dataKey="orders" fill="#10B981" radius={[4, 4, 0, 0]} barSize={20} opacity={0.8} />
                         <Line yAxisId="left" type="monotone" dataKey="profit" stroke="#F59E0B" strokeWidth={2} dot={{ r: 3 }} strokeDasharray="5 5" />
@@ -351,7 +351,7 @@ export default function ReportsPage() {
                         <Pie data={data.paymentBreakdown} cx="50%" cy="50%" innerRadius={55} outerRadius={80} paddingAngle={4} dataKey="value">
                           {data.paymentBreakdown.map((_, i) => <Cell key={i} fill={COLORS[i]} />)}
                         </Pie>
-                        <Tooltip formatter={(value: number) => formatCurrency(value)} contentStyle={{ fontSize: 12, borderRadius: 10 }} />
+                        <Tooltip formatter={(value: any) => formatCurrency(value)} contentStyle={{ fontSize: 12, borderRadius: 10 }} />
                       </PieChart>
                     </ResponsiveContainer>
                   </div>
@@ -454,7 +454,7 @@ export default function ReportsPage() {
                       <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
                       <XAxis dataKey="period" fontSize={11} tick={{ fill: '#64748B' }} />
                       <YAxis fontSize={11} tick={{ fill: '#64748B' }} tickFormatter={v => `${(v / 1000000).toFixed(0)}M`} />
-                      <Tooltip formatter={(value: number) => [formatCurrency(value), 'Doanh thu']} contentStyle={{ fontSize: 12, borderRadius: 10 }} />
+                      <Tooltip formatter={(value: any) => [formatCurrency(value), 'Doanh thu']} contentStyle={{ fontSize: 12, borderRadius: 10 }} />
                       <Area type="monotone" dataKey="revenue" stroke="#2563EB" fill="url(#areaBlue)" strokeWidth={2.5} />
                     </AreaChart>
                   </ResponsiveContainer>
@@ -474,7 +474,7 @@ export default function ReportsPage() {
                       <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
                       <XAxis dataKey="period" fontSize={11} tick={{ fill: '#64748B' }} />
                       <YAxis fontSize={11} tick={{ fill: '#64748B' }} tickFormatter={v => `${(v / 1000000).toFixed(0)}M`} />
-                      <Tooltip formatter={(value: number) => [formatCurrency(value), 'Lợi nhuận']} contentStyle={{ fontSize: 12, borderRadius: 10 }} />
+                      <Tooltip formatter={(value: any) => [formatCurrency(value), 'Lợi nhuận']} contentStyle={{ fontSize: 12, borderRadius: 10 }} />
                       <Line type="monotone" dataKey="profit" stroke="#10B981" strokeWidth={2.5} dot={{ fill: '#10B981', r: 4 }} />
                     </LineChart>
                   </ResponsiveContainer>
@@ -548,7 +548,7 @@ export default function ReportsPage() {
                       <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
                       <XAxis type="number" fontSize={11} tick={{ fill: '#64748B' }} tickFormatter={v => `${(v / 1000000).toFixed(0)}M`} />
                       <YAxis type="category" dataKey="name" fontSize={11} tick={{ fill: '#64748B' }} width={120} />
-                      <Tooltip formatter={(value: number) => [formatCurrency(value), 'Doanh thu']} contentStyle={{ fontSize: 12, borderRadius: 10 }} />
+                      <Tooltip formatter={(value: any) => [formatCurrency(value), 'Doanh thu']} contentStyle={{ fontSize: 12, borderRadius: 10 }} />
                       <Bar dataKey="revenue" radius={[0, 6, 6, 0]} barSize={24}>
                         {data.topProducts.slice(0, 8).map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                       </Bar>
@@ -653,10 +653,10 @@ export default function ReportsPage() {
                 <div className="h-72">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
-                      <Pie data={data.paymentBreakdown} cx="50%" cy="50%" innerRadius={60} outerRadius={100} paddingAngle={4} dataKey="value" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
+                      <Pie data={data.paymentBreakdown} cx="50%" cy="50%" innerRadius={60} outerRadius={100} paddingAngle={4} dataKey="value" label={({ name, percent }: any) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`}>
                         {data.paymentBreakdown.map((_, i) => <Cell key={i} fill={COLORS[i]} />)}
                       </Pie>
-                      <Tooltip formatter={(value: number) => formatCurrency(value)} contentStyle={{ fontSize: 12, borderRadius: 10 }} />
+                      <Tooltip formatter={(value: any) => formatCurrency(value)} contentStyle={{ fontSize: 12, borderRadius: 10 }} />
                     </PieChart>
                   </ResponsiveContainer>
                 </div>

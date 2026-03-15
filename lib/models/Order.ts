@@ -1,4 +1,4 @@
-import mongoose, { Schema, type Document } from 'mongoose';
+﻿import mongoose, { Schema, type Document } from 'mongoose';
 
 export interface IOrderItem {
   productId: mongoose.Types.ObjectId;
@@ -88,7 +88,7 @@ const OrderSchema = new Schema<IOrder>(
   {
     timestamps: true,
     toJSON: {
-      transform: (_doc, ret) => {
+      transform: (_doc: any, ret: any) => {
         ret.id = ret._id.toString();
         delete ret._id;
         delete ret.__v;
