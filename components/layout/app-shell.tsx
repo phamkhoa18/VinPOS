@@ -12,6 +12,7 @@ import {
 import { useAuthStore, type ShopMode } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import NotificationBell from '@/components/notification-bell';
 
 interface NavItem {
   icon: React.ReactNode;
@@ -47,7 +48,7 @@ const adminNavItems: NavItem[] = [
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { user, isAuthenticated, shopMode, setShopMode, logout, checkAuth } = useAuthStore();
+  const { user, isAuthenticated, isLoading, shopMode, setShopMode, logout, checkAuth } = useAuthStore();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -55,13 +56,29 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     checkAuth();
   }, []);
 
+  // Only redirect to login AFTER loading is done AND auth failed
   useEffect(() => {
-    if (!useAuthStore.getState().isLoading && !useAuthStore.getState().isAuthenticated) {
+    if (!isLoading && !isAuthenticated) {
       router.replace('/login');
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, isLoading]);
 
-  if (!isAuthenticated || !user) {
+  // Force employees to POS mode always
+  const isEmployee = user?.role === 'employee';
+  useEffect(() => {
+    if (isEmployee && isAuthenticated) {
+      if (shopMode !== 'pos') {
+        setShopMode('pos');
+      }
+      // Redirect employee away from management pages
+      if (pathname !== '/pos') {
+        router.replace('/pos');
+      }
+    }
+  }, [isEmployee, isAuthenticated, pathname, shopMode]);
+
+  // Show loading spinner while checking auth
+  if (isLoading || !isAuthenticated || !user) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
@@ -70,7 +87,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   const isAdmin = user.role === 'admin';
-  const isPOS = shopMode === 'pos' && !isAdmin;
+  const isPOS = (shopMode === 'pos' && !isAdmin) || isEmployee;
   const navItems = isAdmin ? adminNavItems : getShopNavItems(shopMode);
 
   const handleLogout = async () => {
@@ -91,15 +108,24 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         <div className="h-14 bg-white border-b border-gray-200 flex items-center justify-between px-4 shadow-sm">
           <div className="flex items-center gap-3">
             <Image src="/logo/VinPOS_logo.png" alt="VinPOS" width={32} height={32} className="w-8 h-8 object-contain" />
-            <span className="font-semibold text-gray-900">VinPOS</span>
+            <Image src="/logo/VinPOS_text.png" alt="VinPOS" width={80} height={24} className="h-5 w-auto object-contain" />
             <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-md font-medium">
               Chế độ bán hàng
             </span>
+            {isEmployee && (
+              <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-md font-medium">
+                Nhân viên
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-3">
-            <Button variant="outline" size="sm" onClick={toggleMode} className="text-xs gap-1.5 border-gray-200 rounded-lg">
-              <Monitor className="w-3.5 h-3.5" /> Chế độ quản lý
-            </Button>
+            {/* Only show management toggle for shop owners, not employees */}
+            {!isEmployee && (
+              <Button variant="outline" size="sm" onClick={toggleMode} className="text-xs gap-1.5 border-gray-200 rounded-lg">
+                <Monitor className="w-3.5 h-3.5" /> Chế độ quản lý
+              </Button>
+            )}
+            <NotificationBell />
             <div className="flex items-center gap-2">
               <Avatar className="w-7 h-7">
                 <AvatarFallback className="bg-blue-100 text-blue-700 text-xs font-medium">
@@ -108,6 +134,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               </Avatar>
               <span className="text-sm text-gray-700 hidden sm:inline">{user.name}</span>
             </div>
+            <button
+              onClick={handleLogout}
+              title="Đăng xuất"
+              className="p-1.5 rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-600 transition-colors"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
           </div>
         </div>
         {children}
@@ -145,13 +178,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           <div className="flex items-center gap-3 overflow-hidden">
             <Image src="/logo/VinPOS_logo.png" alt="VinPOS" width={36} height={36} className="w-9 h-9 object-contain flex-shrink-0" />
             {!collapsed && (
-              <motion.span
+              <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="text-lg font-bold text-gray-900 whitespace-nowrap"
+                className="whitespace-nowrap"
               >
-                Vin<span className="text-green-600">POS</span>
-              </motion.span>
+                <Image src="/logo/VinPOS_text.png" alt="VinPOS" width={100} height={28} className="h-6 w-auto object-contain" />
+              </motion.div>
             )}
           </div>
           <button
@@ -174,17 +207,15 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             <div className="bg-gray-100 rounded-lg p-1 flex gap-1">
               <button
                 onClick={() => { setShopMode('management'); router.push('/dashboard'); }}
-                className={`flex-1 flex items-center justify-center gap-1.5 text-xs font-medium py-2 rounded-md transition-all ${
-                  shopMode === 'management' ? 'bg-white text-blue-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'
-                }`}
+                className={`flex-1 flex items-center justify-center gap-1.5 text-xs font-medium py-2 rounded-md transition-all ${shopMode === 'management' ? 'bg-white text-blue-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                  }`}
               >
                 <BarChart3 className="w-3.5 h-3.5" /> Quản lý
               </button>
               <button
                 onClick={() => { setShopMode('pos'); router.push('/pos'); }}
-                className={`flex-1 flex items-center justify-center gap-1.5 text-xs font-medium py-2 rounded-md transition-all ${
-                  shopMode === 'pos' ? 'bg-white text-blue-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'
-                }`}
+                className={`flex-1 flex items-center justify-center gap-1.5 text-xs font-medium py-2 rounded-md transition-all ${shopMode === 'pos' ? 'bg-white text-blue-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                  }`}
               >
                 <ShoppingCart className="w-3.5 h-3.5" /> Bán hàng
               </button>
@@ -202,11 +233,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   key={item.href}
                   onClick={() => { router.push(item.href); setMobileOpen(false); }}
                   title={collapsed ? item.label : undefined}
-                  className={`w-full flex items-center ${collapsed ? 'justify-center' : ''} gap-3 ${collapsed ? 'p-3' : 'px-3 py-2.5'} rounded-lg text-sm font-medium transition-all duration-200 ${
-                    isActive
+                  className={`w-full flex items-center ${collapsed ? 'justify-center' : ''} gap-3 ${collapsed ? 'p-3' : 'px-3 py-2.5'} rounded-lg text-sm font-medium transition-all duration-200 ${isActive
                       ? 'bg-blue-50 text-blue-700 shadow-sm shadow-blue-100'
                       : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'
-                  }`}
+                    }`}
                 >
                   <span className={isActive ? 'text-blue-600' : ''}>{item.icon}</span>
                   {!collapsed && <span>{item.label}</span>}
@@ -255,7 +285,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 min-h-screen flex flex-col">
+      <main className="flex-1 min-h-screen flex flex-col min-w-0 overflow-x-hidden">
         <header className="h-16 bg-white/80 backdrop-blur-lg border-b border-gray-200/60 flex items-center justify-between px-4 lg:px-6 sticky top-0 z-30">
           <div className="flex items-center gap-3">
             <button
@@ -278,6 +308,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 )}
               </Button>
             )}
+            <NotificationBell />
             <div className="flex items-center gap-2 pl-3 border-l border-gray-200">
               <Avatar className="w-8 h-8">
                 <AvatarFallback className="bg-blue-100 text-blue-700 text-xs font-medium">

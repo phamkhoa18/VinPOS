@@ -1,12 +1,12 @@
-﻿'use client';
+'use client';
 
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search, Plus, Minus, Trash2, ShoppingBag, CreditCard, Banknote, Smartphone,
   Printer, X, User, Loader2, QrCode, ChevronDown, Folder, Hash, Percent,
   StickyNote, Clock, ArrowRight, CheckCircle2, Receipt, Volume2,
-  Keyboard, AlertCircle, Tag, Barcode, UserPlus, Star,
+  Keyboard, AlertCircle, Tag, Barcode, UserPlus, Star, FilePlus2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -29,6 +29,7 @@ interface Customer { id: string; name: string; phone: string; email?: string; po
 
 export default function POSPage() {
   const [products, setProducts] = useState<Product[]>([]);
+  const [mobileCartOpen, setMobileCartOpen] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [search, setSearch] = useState('');
@@ -39,6 +40,7 @@ export default function POSPage() {
   const [showPayment, setShowPayment] = useState(false);
   const [showCustomerPicker, setShowCustomerPicker] = useState(false);
   const [showDiscount, setShowDiscount] = useState<string | null>(null);
+  const [showBillDiscount, setShowBillDiscount] = useState(false);
   const [showNote, setShowNote] = useState(false);
   const [showReceipt, setShowReceipt] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
@@ -47,28 +49,54 @@ export default function POSPage() {
   const [processing, setProcessing] = useState(false);
   const [discountInput, setDiscountInput] = useState('');
   const [discountType, setDiscountType] = useState<'fixed' | 'percent'>('fixed');
+  const [billDiscountInput, setBillDiscountInput] = useState('');
+  const [billDiscountTypeInput, setBillDiscountTypeInput] = useState<'fixed' | 'percent'>('fixed');
   const [lastOrder, setLastOrder] = useState<Record<string, unknown> | null>(null);
+  const [cashInputDisplay, setCashInputDisplay] = useState('');
 
   const searchRef = useRef<HTMLInputElement>(null);
   const barcodeRef = useRef<HTMLInputElement>(null);
 
   const {
-    items, customerId, customerName, note, paymentMethod, amountPaid,
+    tabs, activeTabId, addTab, removeTab, switchTab,
+    items, customerId, customerName, note, paymentMethod, amountPaid, billDiscount, billDiscountType,
     addItem, removeItem, updateQuantity, setCustomer, setNote,
-    setPaymentMethod, setAmountPaid, clearCart, getSubtotal, getTotal, getItemCount,
-    updateDiscount,
+    setPaymentMethod, setAmountPaid, setBillDiscount, clearCart, getSubtotal, getTotal, getItemCount,
+    updateDiscount, getBillDiscountAmount,
   } = useCartStore();
 
-  // Fetch data
+  const receiptSettingsRef = useRef<Record<string, unknown>>({});
+
+  // Fetch data + settings
   useEffect(() => {
     Promise.all([
       fetch('/api/products?limit=200&active=true').then(r => r.json()),
       fetch('/api/categories').then(r => r.json()),
       fetch('/api/customers?limit=100').then(r => r.json()),
-    ]).then(([pData, cData, cuData]) => {
+      fetch('/api/settings').then(r => r.ok ? r.json() : null).catch(() => null),
+    ]).then(([pData, cData, cuData, settingsData]) => {
       setProducts(pData.products || []);
       setCategories(cData || []);
       setCustomers(cuData.customers || []);
+      // Merge shop info + receipt settings
+      if (settingsData) {
+        const rs = {
+          shopName: settingsData.shop?.name || '',
+          shopAddress: settingsData.shop?.address || '',
+          shopPhone: settingsData.shop?.phone || '',
+          taxId: settingsData.shop?.taxCode || '',
+          ...(settingsData.receiptSettings || {}),
+        };
+        receiptSettingsRef.current = rs;
+        // Cache in localStorage for offline access
+        try { localStorage.setItem('vinpos_receipt_settings', JSON.stringify(rs)); } catch {}
+      } else {
+        // Fallback to localStorage
+        try {
+          const saved = localStorage.getItem('vinpos_receipt_settings');
+          if (saved) receiptSettingsRef.current = JSON.parse(saved);
+        } catch {}
+      }
       setLoading(false);
     }).catch(() => setLoading(false));
   }, []);
@@ -121,12 +149,48 @@ export default function POSPage() {
 
   const handleOpenPayment = () => {
     if (items.length === 0) { toast.error('Giỏ hàng trống!'); return; }
-    setAmountPaid(getTotal());
+    const t = getTotal();
+    setAmountPaid(t);
+    setCashInputDisplay(formatVNInput(t));
     setShowPayment(true);
   };
 
+  // Helper: format number to VN currency display (no symbol)
+  const formatVNInput = (num: number): string => {
+    if (!num) return '';
+    return num.toLocaleString('vi-VN');
+  };
+
+  // Helper: parse VN formatted string to number
+  const parseVNInput = (str: string): number => {
+    return Number(str.replace(/[^0-9]/g, '')) || 0;
+  };
+
+  const handleCashInputChange = (val: string) => {
+    const num = parseVNInput(val);
+    setAmountPaid(num);
+    setCashInputDisplay(num ? formatVNInput(num) : '');
+  };
+
+  const handleCashQuickPick = (v: number) => {
+    setAmountPaid(v);
+    setCashInputDisplay(formatVNInput(v));
+  };
+
+  const handleApplyBillDiscount = () => {
+    const val = billDiscountTypeInput === 'fixed' ? parseVNInput(billDiscountInput) : Number(billDiscountInput);
+    if (isNaN(val) || val < 0) { toast.error('Số không hợp lệ'); return; }
+    if (billDiscountTypeInput === 'percent' && val > 100) { toast.error('Không quá 100%'); return; }
+    const afterItemDiscount = getSubtotal() - items.reduce((s, i) => s + i.discount * i.quantity, 0);
+    if (billDiscountTypeInput === 'fixed' && val > afterItemDiscount) { toast.error('Giảm giá không lớn hơn tổng bill'); return; }
+    setBillDiscount(val, billDiscountTypeInput);
+    toast.success(`Đã giảm giá bill: ${billDiscountTypeInput === 'percent' ? `${val}%` : formatCurrency(val)}`);
+    setShowBillDiscount(false);
+    setBillDiscountInput('');
+  };
+
   const handleApplyDiscount = (productId: string) => {
-    const val = Number(discountInput);
+    const val = discountType === 'fixed' ? parseVNInput(discountInput) : Number(discountInput);
     if (isNaN(val) || val < 0) { toast.error('Số không hợp lệ'); return; }
     const item = items.find(i => i.product.id === productId);
     if (!item) return;
@@ -148,7 +212,7 @@ export default function POSPage() {
           discount: i.discount, total: (i.product.price - i.discount) * i.quantity,
         })),
         subtotal: getSubtotal(),
-        discount: items.reduce((sum, i) => sum + i.discount * i.quantity, 0),
+        discount: items.reduce((sum, i) => sum + i.discount * i.quantity, 0) + getBillDiscountAmount(),
         total: getTotal(),
         amountPaid, changeAmount: Math.max(0, amountPaid - getTotal()),
         paymentMethod, customerId: customerId || undefined, note: note || undefined,
@@ -163,10 +227,32 @@ export default function POSPage() {
       const order = await res.json();
       toast.success(`Đơn hàng ${order.orderNumber} thành công!`, { duration: 4000 });
 
-      setLastOrder({ ...orderData, orderNumber: order.orderNumber, createdAt: new Date().toISOString() });
+      const savedOrder = { ...orderData, orderNumber: order.orderNumber, createdAt: new Date().toISOString(), note: note || '' };
+      setLastOrder(savedOrder);
       setShowPayment(false);
       setShowReceipt(true);
       clearCart();
+
+      // Auto-print if enabled in settings
+      const rs = getReceiptSettings();
+      if (rs.autoPrint) {
+        setTimeout(() => {
+          const html = generateReceiptHTML({
+            orderNumber: savedOrder.orderNumber,
+            items: savedOrder.items as Array<{ productName: string; quantity: number; price: number; discount: number; total: number }>,
+            subtotal: savedOrder.subtotal, discount: savedOrder.discount,
+            total: savedOrder.total, amountPaid: savedOrder.amountPaid,
+            changeAmount: savedOrder.changeAmount, paymentMethod: savedOrder.paymentMethod,
+            customerName: customerName || undefined, createdAt: savedOrder.createdAt,
+            note: savedOrder.note || undefined,
+            shopName: (rs.shopName as string) || 'VinPOS Store',
+            shopAddress: (rs.shopAddress as string) || '',
+            shopPhone: (rs.shopPhone as string) || '',
+            taxId: (rs.taxId as string) || '',
+          }, rs);
+          printReceipt(html);
+        }, 500);
+      }
 
       // Refresh stock
       const pRes = await fetch('/api/products?limit=200&active=true');
@@ -178,8 +264,14 @@ export default function POSPage() {
     setProcessing(false);
   };
 
+  // Load receipt settings (pre-fetched from DB, cached in ref)
+  const getReceiptSettings = useCallback(() => {
+    return receiptSettingsRef.current as Record<string, unknown>;
+  }, []);
+
   const handlePrintReceipt = () => {
     if (!lastOrder) return;
+    const rs = getReceiptSettings();
     const html = generateReceiptHTML({
       orderNumber: lastOrder.orderNumber as string,
       items: lastOrder.items as Array<{ productName: string; quantity: number; price: number; discount: number; total: number }>,
@@ -187,8 +279,13 @@ export default function POSPage() {
       total: lastOrder.total as number, amountPaid: lastOrder.amountPaid as number,
       changeAmount: lastOrder.changeAmount as number, paymentMethod: lastOrder.paymentMethod as string,
       customerName: customerName || undefined, createdAt: lastOrder.createdAt as string,
-      shopName: 'VinPOS Demo Store', shopAddress: '123 Nguyễn Huệ, Q1, HCM', shopPhone: '0912345678',
-    });
+      cashierName: (rs.cashierName as string) || undefined,
+      note: lastOrder.note as string || undefined,
+      shopName: (rs.shopName as string) || 'VinPOS Store',
+      shopAddress: (rs.shopAddress as string) || '',
+      shopPhone: (rs.shopPhone as string) || '',
+      taxId: (rs.taxId as string) || '',
+    }, rs as Record<string, unknown>);
     printReceipt(html);
   };
 
@@ -199,48 +296,48 @@ export default function POSPage() {
   const total = getTotal();
   const subtotal = getSubtotal();
   const totalDiscount = items.reduce((s, i) => s + i.discount * i.quantity, 0);
+  const billDiscountAmount = getBillDiscountAmount();
   const itemCount = getItemCount();
 
   return (
-    <div className="h-[calc(100vh-56px)] flex">
+    <div className="h-[calc(100vh-56px)] flex flex-col lg:flex-row relative overflow-hidden">
       {/* ====== LEFT: Product Browser ====== */}
-      <div className="flex-1 flex flex-col bg-gray-50 min-w-0">
+      <div className="flex-1 flex flex-col bg-gray-50 min-w-0 min-h-0">
         {/* Search & Barcode Bar */}
-        <div className="p-3 bg-white border-b border-gray-200">
-          <div className="flex gap-2">
+        <div className="p-2 sm:p-3 bg-white border-b border-gray-200">
+          <div className="flex gap-1.5 sm:gap-2">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Search className="absolute left-2.5 sm:left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <Input
                 ref={searchRef}
-                placeholder="Tìm sản phẩm (F1) — tên, mã SKU..."
+                placeholder="Tìm sản phẩm..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                className="pl-10 h-10 bg-gray-50 rounded-lg border-gray-200 focus:bg-white text-sm"
+                className="pl-8 sm:pl-10 h-9 sm:h-10 bg-gray-50 rounded-lg border-gray-200 focus:bg-white text-sm"
               />
               {search && (
-                <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                <button onClick={() => setSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
                   <X className="w-4 h-4" />
                 </button>
               )}
             </div>
-            <div className="relative w-48">
+            <div className="relative w-48 hidden sm:block">
               <Barcode className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <Input
                 ref={barcodeRef}
                 placeholder="Quét barcode (F3)"
                 onKeyDown={handleBarcodeScan}
-                className="pl-10 h-10 bg-gray-50 rounded-lg border-gray-200 focus:bg-white text-sm font-mono"
+                className="pl-10 h-9 sm:h-10 bg-gray-50 rounded-lg border-gray-200 focus:bg-white text-sm font-mono"
               />
             </div>
           </div>
 
           {/* Category Tabs */}
-          <div className="flex gap-1.5 mt-2.5 overflow-x-auto pb-1 scrollbar-hide">
+          <div className="flex gap-1 sm:gap-1.5 mt-2 sm:mt-2.5 overflow-x-auto pb-1 scrollbar-hide">
             <button
               onClick={() => setSelectedCat('all')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-all ${
-                selectedCat === 'all' ? 'bg-blue-600 text-white shadow-sm' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
+              className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 rounded-md text-[11px] sm:text-xs font-medium whitespace-nowrap transition-all ${selectedCat === 'all' ? 'bg-blue-600 text-white shadow-sm' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
             >
               <Folder className="w-3.5 h-3.5" /> Tất cả ({products.filter(p => p.stock > 0).length})
             </button>
@@ -251,9 +348,8 @@ export default function POSPage() {
                 <button
                   key={c.id}
                   onClick={() => setSelectedCat(c.id)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-all ${
-                    selectedCat === c.id ? 'bg-blue-600 text-white shadow-sm' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
+                  className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 rounded-md text-[11px] sm:text-xs font-medium whitespace-nowrap transition-all ${selectedCat === c.id ? 'bg-blue-600 text-white shadow-sm' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
                 >
                   <CatIcon className="w-3.5 h-3.5" /> {c.name} ({count})
                 </button>
@@ -263,7 +359,7 @@ export default function POSPage() {
         </div>
 
         {/* Product Grid */}
-        <ScrollArea className="flex-1 p-3">
+        <ScrollArea className="flex-1 p-2 sm:p-3">
           {filtered.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-gray-400">
               <QrCode className="w-14 h-14 mb-3 opacity-40" />
@@ -287,9 +383,8 @@ export default function POSPage() {
                       }
                       addItem(p);
                     }}
-                    className={`relative bg-white rounded-lg border p-3 text-left transition-all hover:shadow-md hover:border-blue-200 ${
-                      inCart ? 'border-blue-300 ring-2 ring-blue-100' : 'border-gray-100'
-                    }`}
+                    className={`relative bg-white rounded-lg border p-2 sm:p-3 text-left transition-all hover:shadow-md hover:border-blue-200 active:scale-95 ${inCart ? 'border-blue-300 ring-2 ring-blue-100' : 'border-gray-100'
+                      }`}
                   >
                     {/* Stock warning */}
                     {lowStock && (
@@ -298,12 +393,12 @@ export default function POSPage() {
                       </div>
                     )}
 
-                    <div className="w-full aspect-square bg-gradient-to-br from-blue-50 to-indigo-50 rounded-md flex items-center justify-center mb-2">
-                      <ProdIcon className="w-8 h-8 text-blue-500" />
+                    <div className="w-full aspect-square bg-gradient-to-br from-blue-50 to-indigo-50 rounded-md flex items-center justify-center mb-1.5 sm:mb-2">
+                      <ProdIcon className="w-6 h-6 sm:w-8 sm:h-8 text-blue-500" />
                     </div>
-                    <p className="text-xs font-medium text-gray-900 line-clamp-2 leading-tight mb-1 h-8">{p.name}</p>
-                    <p className="text-sm font-bold text-blue-600">{formatCurrency(p.price)}</p>
-                    <div className="flex items-center justify-between mt-1">
+                    <p className="text-[10px] sm:text-xs font-medium text-gray-900 line-clamp-2 leading-tight mb-0.5 sm:mb-1 h-6 sm:h-8">{p.name}</p>
+                    <p className="text-xs sm:text-sm font-bold text-blue-600">{formatCurrency(p.price)}</p>
+                    <div className="flex items-center justify-between mt-0.5 sm:mt-1">
                       <span className={`text-[10px] ${lowStock ? 'text-orange-500 font-medium' : 'text-gray-400'}`}>
                         Kho: {p.stock} {p.unit}
                       </span>
@@ -320,8 +415,8 @@ export default function POSPage() {
           )}
         </ScrollArea>
 
-        {/* Bottom Shortcuts Bar */}
-        <div className="h-10 bg-white border-t border-gray-200 flex items-center gap-4 px-4 text-[10px] text-gray-400 font-mono">
+        {/* Bottom Shortcuts Bar - hidden on mobile */}
+        <div className="h-10 bg-white border-t border-gray-200 hidden md:flex items-center gap-4 px-4 text-[10px] text-gray-400 font-mono">
           <span>F1: Tìm kiếm</span>
           <span>F2: Thanh toán</span>
           <span>F3: Quét barcode</span>
@@ -334,8 +429,97 @@ export default function POSPage() {
         </div>
       </div>
 
+      {/* Mobile Cart Toggle Button */}
+      {!mobileCartOpen && (
+        <button
+          onClick={() => setMobileCartOpen(true)}
+          className="lg:hidden fixed bottom-5 right-4 z-40 bg-blue-600 text-white w-14 h-14 rounded-full shadow-xl shadow-blue-300/50 flex items-center justify-center safe-bottom"
+        >
+          <ShoppingBag className="w-6 h-6" />
+          {itemCount > 0 && (
+            <span className="absolute -top-1 -right-1 w-6 h-6 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
+              {itemCount}
+            </span>
+          )}
+        </button>
+      )}
+
+      {/* Mobile Cart Overlay */}
+      {mobileCartOpen && (
+        <div className="lg:hidden fixed inset-0 z-50 bg-black/30 backdrop-blur-sm" onClick={() => setMobileCartOpen(false)} />
+      )}
+
       {/* ====== RIGHT: Cart Panel ====== */}
-      <div className="w-[340px] lg:w-[400px] bg-white border-l border-gray-200 flex flex-col">
+      <div className={`
+        bg-white border-l border-gray-200 flex flex-col
+        fixed lg:static bottom-0 left-0 right-0 z-50
+        h-[90vh] lg:h-auto w-full lg:w-[380px] xl:w-[400px]
+        rounded-t-2xl lg:rounded-none shadow-2xl lg:shadow-none
+        transition-transform duration-300 ease-out safe-bottom
+        ${mobileCartOpen ? 'translate-y-0' : 'translate-y-full lg:translate-y-0'}
+      `}>
+        {/* Mobile drag handle */}
+        <div className="lg:hidden flex justify-center pt-2 pb-1">
+          <div className="w-10 h-1 bg-gray-300 rounded-full" />
+        </div>
+        <div className="lg:hidden flex items-center justify-between px-4 pb-2">
+          <span className="font-bold text-gray-900">Giỏ hàng ({itemCount})</span>
+          <button onClick={() => setMobileCartOpen(false)} className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* ====== ORDER TABS ====== */}
+        <div className="border-b border-gray-200 bg-gray-50/80">
+          <div className="flex items-center">
+            <div className="flex-1 flex items-center overflow-x-auto scrollbar-hide">
+              {tabs.map((tab) => {
+                const tabItemCount = tab.items.reduce((s, i) => s + i.quantity, 0);
+                const isActive = tab.id === activeTabId;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => switchTab(tab.id)}
+                    className={`group relative flex items-center gap-1.5 px-3 py-2.5 text-xs font-medium whitespace-nowrap border-b-2 transition-all ${
+                      isActive
+                        ? 'bg-white text-blue-600 border-blue-600'
+                        : 'text-gray-500 border-transparent hover:text-gray-700 hover:bg-white/60'
+                    }`}
+                  >
+                    <Receipt className="w-3.5 h-3.5 flex-shrink-0" />
+                    <span className="max-w-[80px] truncate">{tab.label}</span>
+                    {tabItemCount > 0 && (
+                      <span className={`ml-0.5 min-w-[18px] h-[18px] flex items-center justify-center text-[10px] font-bold rounded-full px-1 ${
+                        isActive ? 'bg-blue-100 text-blue-700' : 'bg-gray-200 text-gray-600'
+                      }`}>
+                        {tabItemCount}
+                      </span>
+                    )}
+                    {tabs.length > 1 && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); removeTab(tab.id); }}
+                        className="ml-0.5 p-0.5 rounded text-gray-400 hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-all"
+                        title="Đóng đơn"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="flex items-center px-1 border-l border-gray-200">
+              <button
+                onClick={() => { addTab(); toast.success('Đã tạo đơn hàng mới'); }}
+                className="p-2 rounded-md text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition-all"
+                title="Tạo đơn mới"
+              >
+                <FilePlus2 className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+
         {/* Cart Header */}
         <div className="p-3 border-b border-gray-100">
           <div className="flex items-center justify-between mb-2">
@@ -463,7 +647,7 @@ export default function POSPage() {
         )}
 
         {/* Cart Summary & Payment */}
-        <div className="border-t border-gray-200 p-3 space-y-2 bg-white">
+        <div className="border-t border-gray-200 p-2.5 sm:p-3 space-y-1.5 sm:space-y-2 bg-white">
           {/* Summary */}
           <div className="space-y-1">
             <div className="flex justify-between text-sm text-gray-500">
@@ -472,30 +656,49 @@ export default function POSPage() {
             </div>
             {totalDiscount > 0 && (
               <div className="flex justify-between text-sm text-green-600">
-                <span>Giảm giá</span>
+                <span>Giảm giá SP</span>
                 <span>-{formatCurrency(totalDiscount)}</span>
+              </div>
+            )}
+            {billDiscountAmount > 0 && (
+              <div className="flex justify-between text-sm text-orange-600">
+                <span className="flex items-center gap-1">
+                  Giảm giá bill
+                  <button onClick={() => { setBillDiscount(0, 'fixed'); toast.success('Đã xóa giảm giá bill'); }} className="text-red-400 hover:text-red-500">
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+                <span>-{formatCurrency(billDiscountAmount)}{billDiscountType === 'percent' ? ` (${billDiscount}%)` : ''}</span>
               </div>
             )}
           </div>
 
+          {/* Bill Discount Button */}
+          <button
+            onClick={() => setShowBillDiscount(true)}
+            className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-md border border-dashed border-orange-300 text-xs text-orange-600 hover:bg-orange-50 transition-colors"
+          >
+            <Percent className="w-3.5 h-3.5" /> Giảm giá tổng bill
+          </button>
+
           {/* Total */}
           <div className="flex justify-between items-center pt-2 border-t border-gray-100">
             <span className="font-bold text-gray-900">TỔNG CỘNG</span>
-            <span className="text-2xl font-extrabold text-blue-600">{formatCurrency(total)}</span>
+            <span className="text-xl sm:text-2xl font-extrabold text-blue-600">{formatCurrency(total)}</span>
           </div>
 
           {/* Note & Payment Buttons */}
           <div className="flex gap-2 pt-1">
             <button
               onClick={() => setShowNote(true)}
-              className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg border border-gray-200 text-xs text-gray-600 hover:bg-gray-50 transition-colors"
+              className="flex-1 flex items-center justify-center gap-1 sm:gap-1.5 py-2 rounded-lg border border-gray-200 text-[11px] sm:text-xs text-gray-600 hover:bg-gray-50 transition-colors"
             >
               <StickyNote className="w-3.5 h-3.5" /> Ghi chú (F8)
             </button>
             <Button
               onClick={handleOpenPayment}
               disabled={items.length === 0}
-              className="flex-[2] h-11 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-lg font-semibold shadow-lg shadow-blue-200 gap-2 text-sm"
+              className="flex-[2] h-10 sm:h-11 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-lg font-semibold shadow-lg shadow-blue-200 gap-1.5 sm:gap-2 text-xs sm:text-sm"
             >
               <CreditCard className="w-4 h-4" /> Thanh toán (F2)
             </Button>
@@ -505,7 +708,7 @@ export default function POSPage() {
 
       {/* ====== PAYMENT DIALOG ====== */}
       <Dialog open={showPayment} onOpenChange={setShowPayment}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle className="flex items-center gap-2"><Receipt className="w-5 h-5 text-blue-600" /> Thanh toán đơn hàng</DialogTitle></DialogHeader>
           <div className="space-y-4">
             {/* Order summary */}
@@ -515,7 +718,12 @@ export default function POSPage() {
               </div>
               {totalDiscount > 0 && (
                 <div className="flex justify-between text-sm text-green-600 mb-1">
-                  <span>Giảm giá</span><span>-{formatCurrency(totalDiscount)}</span>
+                  <span>Giảm giá SP</span><span>-{formatCurrency(totalDiscount)}</span>
+                </div>
+              )}
+              {billDiscountAmount > 0 && (
+                <div className="flex justify-between text-sm text-orange-600 mb-1">
+                  <span>Giảm giá bill{billDiscountType === 'percent' ? ` (${billDiscount}%)` : ''}</span><span>-{formatCurrency(billDiscountAmount)}</span>
                 </div>
               )}
               <div className="flex justify-between items-center pt-2 border-t border-blue-200/50">
@@ -541,11 +749,10 @@ export default function POSPage() {
                   <button
                     key={m.key}
                     onClick={() => { setPaymentMethod(m.key); if (m.key !== 'cash') setAmountPaid(total); }}
-                    className={`p-3 rounded-lg border text-center transition-all ${
-                      paymentMethod === m.key
+                    className={`p-3 rounded-lg border text-center transition-all ${paymentMethod === m.key
                         ? 'bg-blue-50 border-blue-300 text-blue-700 ring-2 ring-blue-100'
                         : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300'
-                    }`}
+                      }`}
                   >
                     <span className="flex justify-center mb-1">{m.icon}</span>
                     <span className="text-xs font-semibold block">{m.label}</span>
@@ -559,13 +766,18 @@ export default function POSPage() {
             {paymentMethod === 'cash' && (
               <div className="space-y-2">
                 <Label className="text-sm font-semibold text-gray-700">Tiền khách đưa</Label>
-                <Input
-                  type="number"
-                  value={amountPaid || ''}
-                  onChange={e => setAmountPaid(Number(e.target.value))}
-                  className="h-14 text-2xl font-bold text-center rounded-lg border-2 border-blue-200 focus:border-blue-500"
-                  autoFocus
-                />
+                <div className="relative">
+                  <Input
+                    type="text"
+                    inputMode="numeric"
+                    value={cashInputDisplay}
+                    onChange={e => handleCashInputChange(e.target.value)}
+                    placeholder="0"
+                    className="h-14 text-2xl font-bold text-center rounded-lg border-2 border-blue-200 focus:border-blue-500 pr-10"
+                    autoFocus
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm font-medium text-gray-400">₫</span>
+                </div>
                 <div className="grid grid-cols-4 gap-1.5">
                   {[total, Math.ceil(total / 50000) * 50000, Math.ceil(total / 100000) * 100000, Math.ceil(total / 200000) * 200000, Math.ceil(total / 500000) * 500000, 1000000, 2000000, 5000000]
                     .filter((v, i, arr) => v > 0 && arr.indexOf(v) === i)
@@ -573,10 +785,9 @@ export default function POSPage() {
                     .map(v => (
                       <button
                         key={v}
-                        onClick={() => setAmountPaid(v)}
-                        className={`px-2 py-2 rounded-md text-xs font-semibold transition-all ${
-                          amountPaid === v ? 'bg-blue-100 text-blue-700 border border-blue-300' : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'
-                        }`}
+                        onClick={() => handleCashQuickPick(v)}
+                        className={`px-2 py-2 rounded-md text-xs font-semibold transition-all ${amountPaid === v ? 'bg-blue-100 text-blue-700 border border-blue-300' : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'
+                          }`}
                       >
                         {formatCurrency(v)}
                       </button>
@@ -732,9 +943,17 @@ export default function POSPage() {
               </button>
             </div>
             <Input
-              type="number"
-              value={discountInput}
-              onChange={e => setDiscountInput(e.target.value)}
+              type="text"
+              inputMode="numeric"
+              value={discountType === 'fixed' && discountInput ? formatVNInput(parseVNInput(discountInput)) : discountInput}
+              onChange={e => {
+                if (discountType === 'fixed') {
+                  const num = parseVNInput(e.target.value);
+                  setDiscountInput(num ? formatVNInput(num) : '');
+                } else {
+                  setDiscountInput(e.target.value.replace(/[^0-9.]/g, ''));
+                }
+              }}
               placeholder={discountType === 'fixed' ? 'Nhập số tiền giảm...' : 'Nhập % giảm...'}
               className="h-12 text-lg text-center rounded-lg"
               autoFocus
@@ -742,6 +961,51 @@ export default function POSPage() {
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => { setShowDiscount(null); setDiscountInput(''); }} className="flex-1 rounded-lg">Hủy</Button>
               <Button onClick={() => showDiscount && handleApplyDiscount(showDiscount)} className="flex-1 bg-green-600 hover:bg-green-700 rounded-lg">Áp dụng</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ====== BILL DISCOUNT DIALOG ====== */}
+      <Dialog open={showBillDiscount} onOpenChange={setShowBillDiscount}>
+        <DialogContent className="sm:max-w-xs">
+          <DialogHeader><DialogTitle className="flex items-center gap-2"><Percent className="w-5 h-5 text-orange-600" /> Giảm giá tổng bill</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div className="flex gap-2">
+              <button onClick={() => setBillDiscountTypeInput('fixed')} className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-all ${billDiscountTypeInput === 'fixed' ? 'bg-orange-50 border-orange-300 text-orange-700' : 'border-gray-200 text-gray-600'}`}>
+                <Hash className="w-4 h-4 mx-auto mb-0.5" /> Số tiền
+              </button>
+              <button onClick={() => setBillDiscountTypeInput('percent')} className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-all ${billDiscountTypeInput === 'percent' ? 'bg-orange-50 border-orange-300 text-orange-700' : 'border-gray-200 text-gray-600'}`}>
+                <Percent className="w-4 h-4 mx-auto mb-0.5" /> Phần trăm
+              </button>
+            </div>
+            <Input
+              type="text"
+              inputMode="numeric"
+              value={billDiscountTypeInput === 'fixed' && billDiscountInput ? formatVNInput(parseVNInput(billDiscountInput)) : billDiscountInput}
+              onChange={e => {
+                if (billDiscountTypeInput === 'fixed') {
+                  const num = parseVNInput(e.target.value);
+                  setBillDiscountInput(num ? formatVNInput(num) : '');
+                } else {
+                  setBillDiscountInput(e.target.value.replace(/[^0-9.]/g, ''));
+                }
+              }}
+              placeholder={billDiscountTypeInput === 'fixed' ? 'Nhập số tiền giảm...' : 'Nhập % giảm (0-100)...'}
+              className="h-12 text-lg text-center rounded-lg"
+              autoFocus
+            />
+            {/* Quick percent buttons */}
+            <div className="grid grid-cols-4 gap-1.5">
+              {[5, 10, 15, 20, 25, 30, 40, 50].map(p => (
+                <button key={p} onClick={() => { setBillDiscountTypeInput('percent'); setBillDiscountInput(String(p)); }} className="px-2 py-1.5 rounded-md text-xs font-semibold bg-gray-50 text-gray-600 hover:bg-orange-50 hover:text-orange-600 border border-gray-200 transition-all">
+                  {p}%
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => { setShowBillDiscount(false); setBillDiscountInput(''); }} className="flex-1 rounded-lg">Hủy</Button>
+              <Button onClick={handleApplyBillDiscount} className="flex-1 bg-orange-600 hover:bg-orange-700 rounded-lg">Áp dụng</Button>
             </div>
           </div>
         </DialogContent>

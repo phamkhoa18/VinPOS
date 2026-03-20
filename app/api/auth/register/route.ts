@@ -1,8 +1,9 @@
-﻿import { NextRequest } from 'next/server';
+import { NextRequest } from 'next/server';
 import connectDB from '@/lib/db/mongodb';
 import User from '@/lib/models/User';
 import Shop from '@/lib/models/Shop';
-import { generateToken, successResponse, badRequestResponse, errorResponse } from '@/lib/auth';
+import { badRequestResponse, errorResponse, successResponse } from '@/lib/auth';
+import { sendVerificationEmail } from '@/lib/email';
 
 export async function POST(req: NextRequest) {
   try {
@@ -13,19 +14,24 @@ export async function POST(req: NextRequest) {
       return badRequestResponse('Vui lòng điền đầy đủ thông tin');
     }
 
+    if (password.length < 6) {
+      return badRequestResponse('Mật khẩu tối thiểu 6 ký tự');
+    }
+
     // Check existing email
     const existing = await User.findOne({ email });
     if (existing) {
       return badRequestResponse('Email đã được sử dụng');
     }
 
-    // Create user
+    // Create user (not verified yet)
     const user = await User.create({
       email,
       password,
       name,
       phone,
       role: 'shop_owner',
+      isEmailVerified: false,
     });
 
     // Create shop
@@ -38,27 +44,23 @@ export async function POST(req: NextRequest) {
 
     // Update user with shopId
     user.shopId = shop._id;
+
+    // Generate verification token
+    const verificationToken = user.createVerificationToken();
     await user.save();
 
-    const token = generateToken({
-      userId: user._id.toString(),
-      email: user.email,
-      role: user.role,
-      shopId: shop._id.toString(),
-    });
+    // Send verification email
+    try {
+      await sendVerificationEmail(email, verificationToken, name);
+    } catch (emailError) {
+      console.error('Failed to send verification email:', emailError);
+      // User is still created, just log the error
+    }
 
-    const response = successResponse({
-      user: user.toJSON(),
-      shopId: shop._id.toString(),
-      token,
+    return successResponse({
+      message: 'Đăng ký thành công! Vui lòng kiểm tra email để xác thực tài khoản.',
+      needVerification: true,
     }, 201);
-
-    response.headers.set(
-      'Set-Cookie',
-      `vinpos-token=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${7 * 24 * 60 * 60}`
-    );
-
-    return response;
   } catch (error) {
     console.error('Register error:', error);
     return errorResponse('Đã xảy ra lỗi khi đăng ký');

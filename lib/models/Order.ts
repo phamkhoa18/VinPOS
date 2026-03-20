@@ -1,4 +1,4 @@
-﻿import mongoose, { Schema, type Document } from 'mongoose';
+import mongoose, { Schema, type Document } from 'mongoose';
 
 export interface IOrderItem {
   productId: mongoose.Types.ObjectId;
@@ -49,7 +49,6 @@ const OrderSchema = new Schema<IOrder>(
   {
     orderNumber: {
       type: String,
-      required: true,
       unique: true,
     },
     shopId: {
@@ -98,15 +97,14 @@ const OrderSchema = new Schema<IOrder>(
   }
 );
 
-// Auto generate order number
-OrderSchema.pre('save', async function (next) {
+// Auto generate order number - DO NOT use next() with async functions in Mongoose
+OrderSchema.pre('save', async function () {
   if (this.isNew && !this.orderNumber) {
     const count = await mongoose.models.Order.countDocuments({ shopId: this.shopId });
     const date = new Date();
     const prefix = `KV${date.getFullYear().toString().slice(-2)}${String(date.getMonth() + 1).padStart(2, '0')}${String(date.getDate()).padStart(2, '0')}`;
     this.orderNumber = `${prefix}-${String(count + 1).padStart(4, '0')}`;
   }
-  next();
 });
 
 OrderSchema.index({ shopId: 1, createdAt: -1 });

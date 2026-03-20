@@ -4,6 +4,8 @@ import Order from '@/lib/models/Order';
 import Product from '@/lib/models/Product';
 import Customer from '@/lib/models/Customer';
 import InventoryLog from '@/lib/models/InventoryLog';
+import NotificationModel from '@/lib/models/Notification';
+import { notificationEmitter } from '@/lib/notification-emitter';
 import { getCurrentUser, unauthorizedResponse, successResponse, badRequestResponse, errorResponse } from '@/lib/auth';
 
 // GET /api/orders
@@ -108,9 +110,15 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    // Generate orderNumber before creating order (don't rely on pre-save hook)
+    const orderCount = await Order.countDocuments({ shopId });
+    const now = new Date();
+    const orderNumber = `KV${now.getFullYear().toString().slice(-2)}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}-${String(orderCount + 1).padStart(4, '0')}`;
+
     // Create order
     const order = await Order.create({
       ...data,
+      orderNumber,
       shopId,
       createdBy: user._id,
       status: 'completed',
@@ -122,6 +130,34 @@ export async function POST(req: NextRequest) {
         $inc: { totalOrders: 1, totalSpent: data.total, points: Math.floor(data.total / 10000) },
       });
     }
+
+    // Create and emit realtime notification
+    const formatVND = (n: number) => n.toLocaleString('vi-VN') + '₫';
+    const notification = await NotificationModel.create({
+      shopId,
+      type: 'new_order',
+      title: `Đơn hàng mới #${orderNumber}`,
+      message: `${data.items.length} sản phẩm • Tổng ${formatVND(data.total)} • Thanh toán ${data.paymentMethod === 'cash' ? 'Tiền mặt' : data.paymentMethod === 'transfer' ? 'Chuyển khoản' : data.paymentMethod} • NV: ${user.name}`,
+      data: {
+        orderId: order._id.toString(),
+        orderNumber,
+        total: data.total,
+        itemCount: data.items.length,
+        paymentMethod: data.paymentMethod,
+        createdBy: user.name,
+      },
+    });
+
+    // Emit to SSE stream for this shop
+    notificationEmitter.emit(shopId.toString(), {
+      id: notification._id.toString(),
+      type: 'new_order',
+      title: notification.title,
+      message: notification.message,
+      data: notification.data,
+      isRead: false,
+      createdAt: notification.createdAt.toISOString(),
+    });
 
     return successResponse(order.toJSON(), 201);
   } catch (error) {

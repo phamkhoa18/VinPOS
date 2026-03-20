@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
@@ -129,7 +129,7 @@ export default function DashboardPage() {
                 <div className="flex items-start justify-between">
                   <div>
                     <p className="text-sm text-gray-500 mb-1">{card.title}</p>
-                    <p className="text-2xl font-bold text-gray-900">{card.value}</p>
+                    <p className="text-xl sm:text-2xl font-bold text-gray-900">{card.value}</p>
                     {card.change !== undefined && (
                       <div className={`flex items-center gap-1 mt-2 text-xs font-medium ${card.change >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
                         {card.change >= 0 ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
@@ -163,7 +163,7 @@ export default function DashboardPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="h-72">
+              <div className="h-56 lg:h-72">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={chartData}>
                     <defs>
@@ -247,14 +247,14 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
-              <table className="w-full">
+              <table className="w-full min-w-[500px]">
                 <thead>
                   <tr className="border-b border-gray-100">
                     <th className="text-left py-3 px-3 text-xs font-semibold text-gray-500 uppercase">Mã đơn</th>
-                    <th className="text-left py-3 px-3 text-xs font-semibold text-gray-500 uppercase">Khách hàng</th>
+                    <th className="text-left py-3 px-3 text-xs font-semibold text-gray-500 uppercase hidden sm:table-cell">Khách hàng</th>
                     <th className="text-right py-3 px-3 text-xs font-semibold text-gray-500 uppercase">Tổng tiền</th>
                     <th className="text-center py-3 px-3 text-xs font-semibold text-gray-500 uppercase">Trạng thái</th>
-                    <th className="text-right py-3 px-3 text-xs font-semibold text-gray-500 uppercase">Thời gian</th>
+                    <th className="text-right py-3 px-3 text-xs font-semibold text-gray-500 uppercase hidden md:table-cell">Thời gian</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -271,8 +271,9 @@ export default function DashboardPage() {
                       <tr key={order.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
                         <td className="py-3 px-3">
                           <span className="text-sm font-medium text-blue-600">{order.orderNumber}</span>
+                          <p className="text-xs text-gray-500 sm:hidden">{order.customer?.name || 'Khách lẻ'}</p>
                         </td>
-                        <td className="py-3 px-3 text-sm text-gray-700">
+                        <td className="py-3 px-3 text-sm text-gray-700 hidden sm:table-cell">
                           {order.customer?.name || 'Khách lẻ'}
                         </td>
                         <td className="py-3 px-3 text-sm font-semibold text-gray-900 text-right">
@@ -283,7 +284,7 @@ export default function DashboardPage() {
                             {status.label}
                           </Badge>
                         </td>
-                        <td className="py-3 px-3 text-xs text-gray-500 text-right">
+                        <td className="py-3 px-3 text-xs text-gray-500 text-right hidden md:table-cell">
                           {formatRelativeTime(order.createdAt)}
                         </td>
                       </tr>

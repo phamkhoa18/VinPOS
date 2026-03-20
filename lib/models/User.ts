@@ -1,4 +1,4 @@
-﻿import mongoose, { Schema, type Document } from 'mongoose';
+import mongoose, { Schema, type Document } from 'mongoose';
 import bcrypt from 'bcryptjs';
 
 export interface IUser extends Document {
@@ -11,9 +11,16 @@ export interface IUser extends Document {
   avatar?: string;
   shopId?: mongoose.Types.ObjectId;
   isActive: boolean;
+  isEmailVerified: boolean;
+  verificationToken?: string;
+  verificationExpires?: Date;
+  resetPasswordToken?: string;
+  resetPasswordExpires?: Date;
   createdAt: Date;
   updatedAt: Date;
   comparePassword(candidatePassword: string): Promise<boolean>;
+  createVerificationToken(): string;
+  createPasswordResetToken(): string;
 }
 
 const UserSchema = new Schema<IUser>(
@@ -55,6 +62,14 @@ const UserSchema = new Schema<IUser>(
       type: Boolean,
       default: true,
     },
+    isEmailVerified: {
+      type: Boolean,
+      default: false,
+    },
+    verificationToken: String,
+    verificationExpires: Date,
+    resetPasswordToken: String,
+    resetPasswordExpires: Date,
   },
   {
     timestamps: true,
@@ -64,6 +79,10 @@ const UserSchema = new Schema<IUser>(
         delete ret._id;
         delete ret.__v;
         delete ret.password;
+        delete ret.verificationToken;
+        delete ret.verificationExpires;
+        delete ret.resetPasswordToken;
+        delete ret.resetPasswordExpires;
         return ret;
       },
     },
@@ -81,4 +100,25 @@ UserSchema.methods.comparePassword = async function (candidatePassword: string) 
   return bcrypt.compare(candidatePassword, this.password);
 };
 
-export default mongoose.models.User || mongoose.model<IUser>('User', UserSchema);
+// Create 6-digit verification code
+UserSchema.methods.createVerificationToken = function () {
+  const code = Math.floor(100000 + Math.random() * 900000).toString();
+  this.verificationToken = code;
+  this.verificationExpires = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+  return code;
+};
+
+// Create 6-digit password reset code
+UserSchema.methods.createPasswordResetToken = function () {
+  const code = Math.floor(100000 + Math.random() * 900000).toString();
+  this.resetPasswordToken = code;
+  this.resetPasswordExpires = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+  return code;
+};
+
+// Delete cached model to ensure schema updates (methods etc.) take effect during hot-reload
+if (mongoose.models.User) {
+  delete mongoose.models.User;
+}
+
+export default mongoose.model<IUser>('User', UserSchema);

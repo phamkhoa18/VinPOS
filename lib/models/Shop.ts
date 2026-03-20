@@ -1,4 +1,4 @@
-﻿import mongoose, { Schema, type Document } from 'mongoose';
+import mongoose, { Schema, type Document } from 'mongoose';
 
 export interface IShop extends Document {
   _id: mongoose.Types.ObjectId;
@@ -10,6 +10,7 @@ export interface IShop extends Document {
   ownerId: mongoose.Types.ObjectId;
   taxCode?: string;
   isActive: boolean;
+  receiptSettings?: Record<string, unknown>;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -42,6 +43,10 @@ const ShopSchema = new Schema<IShop>(
     isActive: {
       type: Boolean,
       default: true,
+    },
+    receiptSettings: {
+      type: Schema.Types.Mixed,
+      default: {},
     },
   },
   {

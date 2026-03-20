@@ -1,4 +1,4 @@
-﻿import { NextRequest } from 'next/server';
+import { NextRequest } from 'next/server';
 import connectDB from '@/lib/db/mongodb';
 import User from '@/lib/models/User';
 import Shop from '@/lib/models/Shop';
@@ -21,6 +21,14 @@ export async function POST(req: NextRequest) {
 
     if (!user.isActive) {
       return badRequestResponse('Tài khoản đã bị vô hiệu hóa');
+    }
+
+    // Nhân viên do manager tạo -> bỏ qua xác thực email
+    if (!user.isEmailVerified && user.role !== 'employee') {
+      return Response.json(
+        { error: 'Email chưa được xác thực. Vui lòng kiểm tra hộp thư.', needVerification: true, email: user.email },
+        { status: 403 }
+      );
     }
 
     const isMatch = await user.comparePassword(password);
