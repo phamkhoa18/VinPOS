@@ -36,7 +36,7 @@ export async function PUT(request: Request) {
   try {
     const user = await getCurrentUser();
     if (!user) return unauthorizedResponse();
-    if (user.role !== 'owner' && user.role !== 'admin') {
+    if (user.role !== 'shop_owner' && user.role !== 'admin') {
       return forbiddenResponse('Chỉ chủ cửa hàng mới có quyền thay đổi cấu hình');
     }
 

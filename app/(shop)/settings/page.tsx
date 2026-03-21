@@ -545,71 +545,74 @@ export default function SettingsPage() {
                         className={`p-3 sm:p-4 rounded-xl border transition-all hover:shadow-sm ${emp.isActive ? 'bg-white border-gray-100' : 'bg-gray-50 border-gray-100 opacity-60'
                           }`}
                       >
-                        <div className="flex items-start gap-2.5 sm:gap-4">
-                          <Avatar className="w-8 h-8 sm:w-10 sm:h-10 flex-shrink-0">
-                            <AvatarFallback className={`font-semibold text-xs sm:text-sm ${emp.isActive ? 'bg-blue-100 text-blue-700' : 'bg-gray-200 text-gray-500'
-                              }`}>
-                              {emp.name.charAt(0)}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-                              <p className="text-xs sm:text-sm font-semibold text-gray-900 truncate">{emp.name}</p>
-                              <Badge className={`text-[9px] sm:text-[10px] px-1.5 py-0 h-4 rounded flex-shrink-0 ${emp.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                          {/* Employee info */}
+                          <div className="flex items-start gap-2.5 sm:gap-3 flex-1 min-w-0">
+                            <Avatar className="w-8 h-8 sm:w-10 sm:h-10 flex-shrink-0">
+                              <AvatarFallback className={`font-semibold text-xs sm:text-sm ${emp.isActive ? 'bg-blue-100 text-blue-700' : 'bg-gray-200 text-gray-500'
                                 }`}>
-                                {emp.isActive ? 'Hoạt động' : 'Đã khóa'}
-                              </Badge>
-                            </div>
-                            <div className="flex flex-col sm:flex-row sm:items-center sm:gap-3 mt-0.5">
-                              <span className="text-[10px] sm:text-xs text-gray-500 flex items-center gap-1 truncate">
-                                <Mail className="w-3 h-3 flex-shrink-0" /> {emp.email}
-                              </span>
-                              <span className="text-[10px] sm:text-xs text-gray-500 flex items-center gap-1">
-                                <Phone className="w-3 h-3 flex-shrink-0" /> {emp.phone}
-                              </span>
+                                {emp.name.charAt(0)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                                <p className="text-xs sm:text-sm font-semibold text-gray-900 truncate">{emp.name}</p>
+                                <Badge className={`text-[9px] sm:text-[10px] px-1.5 py-0 h-4 rounded flex-shrink-0 ${emp.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                                  }`}>
+                                  {emp.isActive ? 'Hoạt động' : 'Đã khóa'}
+                                </Badge>
+                              </div>
+                              <div className="flex flex-col sm:flex-row sm:items-center sm:gap-3 mt-0.5">
+                                <span className="text-[10px] sm:text-xs text-gray-500 flex items-center gap-1 truncate">
+                                  <Mail className="w-3 h-3 flex-shrink-0" /> {emp.email}
+                                </span>
+                                <span className="text-[10px] sm:text-xs text-gray-500 flex items-center gap-1">
+                                  <Phone className="w-3 h-3 flex-shrink-0" /> {emp.phone}
+                                </span>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                        {/* Action buttons - below on mobile, beside on desktop */}
-                        <div className="flex items-center gap-0.5 sm:gap-1 mt-2 sm:mt-0 sm:absolute sm:right-4 sm:top-1/2 sm:-translate-y-1/2 border-t sm:border-t-0 border-gray-50 pt-2 sm:pt-0 -mx-1 px-1">
-                          <button
-                            onClick={() => {
-                              setShowEditEmployee(emp);
-                              setEditForm({ name: emp.name, email: emp.email, phone: emp.phone });
-                            }}
-                            title="Chỉnh sửa"
-                            className="flex-1 sm:flex-none flex items-center justify-center gap-1 p-1.5 sm:p-2 rounded-lg text-gray-400 hover:bg-blue-50 hover:text-blue-600 transition-colors"
-                          >
-                            <Pencil className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                            <span className="text-[10px] sm:hidden">Sửa</span>
-                          </button>
-                          <button
-                            onClick={() => { setShowResetPassword(emp); setNewPassword(''); }}
-                            title="Đổi mật khẩu"
-                            className="flex-1 sm:flex-none flex items-center justify-center gap-1 p-1.5 sm:p-2 rounded-lg text-gray-400 hover:bg-yellow-50 hover:text-yellow-600 transition-colors"
-                          >
-                            <Key className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                            <span className="text-[10px] sm:hidden">MK</span>
-                          </button>
-                          <button
-                            onClick={() => handleToggleActive(emp)}
-                            title={emp.isActive ? 'Vô hiệu hóa' : 'Kích hoạt'}
-                            className={`flex-1 sm:flex-none flex items-center justify-center gap-1 p-1.5 sm:p-2 rounded-lg transition-colors ${emp.isActive
-                                ? 'text-gray-400 hover:bg-orange-50 hover:text-orange-600'
-                                : 'text-gray-400 hover:bg-green-50 hover:text-green-600'
-                              }`}
-                          >
-                            {emp.isActive ? <ShieldOff className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <ShieldCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
-                            <span className="text-[10px] sm:hidden">{emp.isActive ? 'Khóa' : 'Mở'}</span>
-                          </button>
-                          <button
-                            onClick={() => setShowDeleteConfirm(emp)}
-                            title="Xóa"
-                            className="flex-1 sm:flex-none flex items-center justify-center gap-1 p-1.5 sm:p-2 rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors"
-                          >
-                            <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                            <span className="text-[10px] sm:hidden">Xóa</span>
-                          </button>
+                          {/* Action buttons */}
+                          <div className="flex items-center gap-0.5 sm:gap-1 border-t sm:border-t-0 border-gray-50 pt-2 sm:pt-0 -mx-1 px-1 sm:mx-0 sm:px-0 flex-shrink-0">
+                            <button
+                              onClick={() => {
+                                setShowEditEmployee(emp);
+                                setEditForm({ name: emp.name, email: emp.email, phone: emp.phone });
+                              }}
+                              title="Chỉnh sửa"
+                              className="flex-1 sm:flex-none flex items-center justify-center gap-1 p-1.5 sm:p-2 rounded-lg text-gray-400 hover:bg-blue-50 hover:text-blue-600 transition-colors"
+                            >
+                              <Pencil className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                              <span className="text-[10px] sm:hidden">Sửa</span>
+                            </button>
+                            <button
+                              onClick={() => { setShowResetPassword(emp); setNewPassword(''); }}
+                              title="Đổi mật khẩu"
+                              className="flex-1 sm:flex-none flex items-center justify-center gap-1 p-1.5 sm:p-2 rounded-lg text-gray-400 hover:bg-yellow-50 hover:text-yellow-600 transition-colors"
+                            >
+                              <Key className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                              <span className="text-[10px] sm:hidden">MK</span>
+                            </button>
+                            <button
+                              onClick={() => handleToggleActive(emp)}
+                              title={emp.isActive ? 'Vô hiệu hóa' : 'Kích hoạt'}
+                              className={`flex-1 sm:flex-none flex items-center justify-center gap-1 p-1.5 sm:p-2 rounded-lg transition-colors ${emp.isActive
+                                  ? 'text-gray-400 hover:bg-orange-50 hover:text-orange-600'
+                                  : 'text-gray-400 hover:bg-green-50 hover:text-green-600'
+                                }`}
+                            >
+                              {emp.isActive ? <ShieldOff className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <ShieldCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
+                              <span className="text-[10px] sm:hidden">{emp.isActive ? 'Khóa' : 'Mở'}</span>
+                            </button>
+                            <button
+                              onClick={() => setShowDeleteConfirm(emp)}
+                              title="Xóa"
+                              className="flex-1 sm:flex-none flex items-center justify-center gap-1 p-1.5 sm:p-2 rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors"
+                            >
+                              <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                              <span className="text-[10px] sm:hidden">Xóa</span>
+                            </button>
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -814,8 +817,8 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="flex flex-col sm:flex-row gap-2">
-                  <Button onClick={() => toast.success('Đã lưu cấu hình máy in!')} className="bg-blue-600 hover:bg-blue-700 rounded-lg gap-2 text-sm w-full sm:w-auto">
-                    <Save className="w-4 h-4" /> Lưu cấu hình
+                  <Button onClick={handleSaveSettings} disabled={settingsSaving} className="bg-blue-600 hover:bg-blue-700 rounded-lg gap-2 text-sm w-full sm:w-auto">
+                    {settingsSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} {settingsSaving ? 'Đang lưu...' : 'Lưu cấu hình'}
                   </Button>
                   <Button variant="outline" onClick={handleTestPrint} className="rounded-lg gap-2 border-green-300 text-green-700 hover:bg-green-50 text-sm w-full sm:w-auto">
                     <Printer className="w-4 h-4" /> In thử
@@ -957,8 +960,8 @@ export default function SettingsPage() {
                   <Button onClick={() => { setReceipt(defaultReceipt); toast.success('Đã khôi phục mặc định'); }} variant="outline" className="rounded-lg gap-2">
                     <RotateCcw className="w-4 h-4" /> Mặc định
                   </Button>
-                  <Button onClick={() => toast.success('Đã lưu mẫu phiếu in!')} className="flex-1 bg-blue-600 hover:bg-blue-700 rounded-lg gap-2">
-                    <Save className="w-4 h-4" /> Lưu mẫu
+                  <Button onClick={handleSaveSettings} disabled={settingsSaving} className="flex-1 bg-blue-600 hover:bg-blue-700 rounded-lg gap-2">
+                    {settingsSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} {settingsSaving ? 'Đang lưu...' : 'Lưu mẫu'}
                   </Button>
                 </div>
               </CardContent>
@@ -1008,8 +1011,8 @@ export default function SettingsPage() {
                   <Switch checked={notify[item.key]} onCheckedChange={v => setNotify(prev => ({ ...prev, [item.key]: v }))} className="flex-shrink-0" />
                 </div>
               ))}
-              <Button onClick={() => toast.success('Đã lưu cài đặt thông báo!')} className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 rounded-lg gap-2 mt-2 text-sm">
-                <Save className="w-4 h-4" /> Lưu cài đặt
+              <Button onClick={handleSaveSettings} disabled={settingsSaving} className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 rounded-lg gap-2 mt-2 text-sm">
+                {settingsSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} {settingsSaving ? 'Đang lưu...' : 'Lưu cài đặt'}
               </Button>
             </CardContent>
           </Card>

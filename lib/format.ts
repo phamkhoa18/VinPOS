@@ -111,7 +111,7 @@ export function generateReceiptHTML(order: {
 
   const fontSizePx = s.fontSize === 'small' ? '10px' : s.fontSize === 'large' ? '14px' : '12px';
   const titleSizePx = s.fontSize === 'small' ? '14px' : s.fontSize === 'large' ? '20px' : '16px';
-  const fw = s.fontWeight === 'normal' ? '400' : s.fontWeight === 'bolder' ? '900' : '700';
+  const fw = s.fontWeight === 'normal' ? '400' : s.fontWeight === 'bolder' ? '700' : '600';
   const lh = s.lineHeight === 'compact' ? '1.2' : s.lineHeight === 'relaxed' ? '1.8' : '1.5';
   const border = `1px ${s.borderStyle} #000`;
   const pad = s.padding === 'compact' ? '2mm' : s.padding === 'spacious' ? '8mm' : '5mm';
@@ -126,19 +126,19 @@ export function generateReceiptHTML(order: {
   <meta charset="utf-8">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Courier New', monospace; font-size: ${fontSizePx}; font-weight: ${fw}; line-height: ${lh}; width: ${s.paperSize}; padding: ${pad}; }
+    body { font-family: Arial, Helvetica, sans-serif; font-size: ${fontSizePx}; font-weight: ${fw}; line-height: ${lh}; width: ${s.paperSize}; padding: ${pad}; }
     .center { text-align: center; }
     .align { text-align: ${align}; }
     .bold { font-weight: bold; }
-    .bolder { font-weight: 900; }
+    .bolder { font-weight: 700; }
     .line { border-top: ${border}; margin: 4px 0; }
     .row { display: flex; justify-content: space-between; margin: 2px 0; }
-    .shop-name { font-size: ${titleSizePx}; font-weight: 900; margin-bottom: 4px; }
-    .receipt-title { font-size: ${titleSizePx}; font-weight: 900; letter-spacing: 2px; text-align: ${align}; margin: 4px 0; }
+    .shop-name { font-size: ${titleSizePx}; font-weight: 700; margin-bottom: 4px; }
+    .receipt-title { font-size: ${titleSizePx}; font-weight: 700; text-align: ${align}; margin: 4px 0; }
     .item { margin: 3px 0; }
     .item-name { font-weight: bold; }
     .item-sku { font-size: ${s.fontSize === 'small' ? '8px' : '9px'}; color: #666; padding-left: 8px; }
-    .total-row { font-size: ${s.boldTotal ? titleSizePx : fontSizePx}; font-weight: ${s.boldTotal ? '900' : fw}; }
+    .total-row { font-size: ${s.boldTotal ? titleSizePx : fontSizePx}; font-weight: ${s.boldTotal ? '700' : fw}; }
     .note { font-style: italic; color: #555; margin: 3px 0; }
     .powered { color: #999; margin-top: 8px; font-size: 9px; }
   </style>
@@ -188,7 +188,11 @@ export function generateReceiptHTML(order: {
 
 // Print receipt
 export function printReceipt(receiptHTML: string) {
-  const printWindow = window.open('', '_blank', 'width=300,height=600');
+  const width = Math.round(screen.width * 0.8);
+  const height = Math.round(screen.height * 0.8);
+  const left = Math.round((screen.width - width) / 2);
+  const top = Math.round((screen.height - height) / 2);
+  const printWindow = window.open('', '_blank', `width=${width},height=${height},left=${left},top=${top},scrollbars=yes`);
   if (printWindow) {
     printWindow.document.write(receiptHTML);
     printWindow.document.close();
@@ -215,3 +219,14 @@ export const paymentMethodMap: Record<string, string> = {
   momo: 'MoMo',
   zalopay: 'ZaloPay',
 };
+
+// Format number to VN input display (e.g., 1.000.000)
+export function formatVNInput(num: number): string {
+  if (!num) return '';
+  return num.toLocaleString('vi-VN');
+}
+
+// Parse VN formatted string to number (e.g., "1.000.000" -> 1000000)
+export function parseVNInput(str: string): number {
+  return Number(str.replace(/[^0-9]/g, '')) || 0;
+}

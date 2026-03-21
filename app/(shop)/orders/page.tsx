@@ -112,6 +112,15 @@ export default function OrdersPage() {
 
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
 
+  // Receipt settings from /settings
+  const [receiptSettings, setReceiptSettings] = useState<Record<string, unknown>>({});
+
+  useEffect(() => {
+    fetch('/api/settings').then(r => r.json()).then(data => {
+      if (data && !data.error) setReceiptSettings(data);
+    }).catch(() => {});
+  }, []);
+
   // Fetch orders
   const fetchOrders = useCallback(async (showRefresh = false) => {
     if (showRefresh) setRefreshing(true);
@@ -202,6 +211,7 @@ export default function OrdersPage() {
 
   // Print bill
   const handlePrintBill = (order: Order) => {
+    const rs = receiptSettings;
     const receiptHTML = generateReceiptHTML({
       orderNumber: order.orderNumber,
       items: order.items,
@@ -212,7 +222,39 @@ export default function OrdersPage() {
       changeAmount: order.changeAmount,
       paymentMethod: order.paymentMethod,
       customerName: order.customer?.name,
+      cashierName: order.createdByUser?.name,
+      note: order.note,
       createdAt: order.createdAt,
+      shopName: (rs.shopName as string) || undefined,
+      shopAddress: (rs.shopAddress as string) || undefined,
+      shopPhone: (rs.shopPhone as string) || undefined,
+      taxId: (rs.taxId as string) || undefined,
+    }, {
+      paperSize: (rs.paperSize as '58mm' | '80mm') || '80mm',
+      fontSize: (rs.fontSize as 'small' | 'medium' | 'large') || 'medium',
+      fontWeight: (rs.fontWeight as 'normal' | 'bold' | 'bolder') || 'bold',
+      lineHeight: (rs.lineHeight as 'compact' | 'normal' | 'relaxed') || 'normal',
+      borderStyle: (rs.borderStyle as 'dashed' | 'dotted' | 'solid') || 'dashed',
+      padding: (rs.padding as 'compact' | 'normal' | 'spacious') || 'normal',
+      receiptTitle: (rs.receiptTitle as string) ?? 'HÓA ĐƠN BÁN HÀNG',
+      titleAlign: (rs.titleAlign as 'left' | 'center' | 'right') || 'center',
+      headerText: (rs.headerText as string) || '',
+      footerText: (rs.footerText as string) || 'Cảm ơn quý khách!\nHẹn gặp lại ♥',
+      showLogo: rs.showLogo !== false,
+      showTaxId: rs.showTaxId === true,
+      showQR: rs.showQR === true,
+      showDate: rs.showDate !== false,
+      showTime: rs.showTime !== false,
+      showCashier: rs.showCashier !== false,
+      showCustomer: rs.showCustomer !== false,
+      showItemNumber: rs.showItemNumber !== false,
+      showSKU: rs.showSKU === true,
+      showSubtotal: rs.showSubtotal !== false,
+      showPaymentMethod: rs.showPaymentMethod !== false,
+      showChange: rs.showChange !== false,
+      showOrderNote: rs.showOrderNote !== false,
+      boldTotal: rs.boldTotal !== false,
+      showPoweredBy: rs.showPoweredBy !== false,
     });
     printReceipt(receiptHTML);
   };
@@ -957,62 +999,152 @@ export default function OrdersPage() {
                     </div>
                   </>
                 ) : (
-                  /* Bill Preview View */
-                  <div className="bg-white border-2 border-dashed border-gray-200 rounded-xl p-6 max-w-[320px] mx-auto font-mono text-[12px] leading-relaxed">
-                    <div className="text-center mb-3">
-                      <p className="text-base font-bold">VinPOS Store</p>
-                      <p className="text-gray-500 text-[10px]">Hệ thống bán hàng thông minh</p>
-                    </div>
-                    <div className="border-t border-dashed border-gray-300 my-2" />
-                    <p className="text-center font-bold text-sm">HÓA ĐƠN BÁN HÀNG</p>
-                    <div className="mt-2 space-y-0.5 text-[11px]">
-                      <div className="flex justify-between"><span>Số HĐ:</span><span className="font-bold">{selectedOrder.orderNumber}</span></div>
-                      <div className="flex justify-between"><span>Ngày:</span><span>{formatDateTime(selectedOrder.createdAt)}</span></div>
-                      <div className="flex justify-between"><span>KH:</span><span>{selectedOrder.customer?.name || 'Khách lẻ'}</span></div>
-                      <div className="flex justify-between"><span>NV:</span><span>{selectedOrder.createdByUser?.name || '—'}</span></div>
-                    </div>
-                    <div className="border-t border-dashed border-gray-300 my-2" />
-                    <div className="space-y-1.5">
-                      {selectedOrder.items.map((item, i) => (
-                        <div key={i}>
-                          <p className="font-bold text-[11px]">{i + 1}. {item.productName}</p>
-                          <div className="flex justify-between text-[10px] text-gray-600 pl-3">
-                            <span>{item.quantity} x {formatCurrency(item.price)}</span>
-                            <span>{formatCurrency(item.total)}</span>
-                          </div>
-                          {item.discount > 0 && (
-                            <div className="flex justify-between text-[10px] text-orange-500 pl-3">
-                              <span>Giảm:</span>
-                              <span>-{formatCurrency(item.discount * item.quantity)}</span>
-                            </div>
-                          )}
+                  /* Bill Preview View - settings-aware */
+                  (() => {
+                    const rs = receiptSettings;
+                    const shopName = (rs.shopName as string) || 'Cửa hàng';
+                    const shopAddress = (rs.shopAddress as string) || '';
+                    const shopPhone = (rs.shopPhone as string) || '';
+                    const taxId = (rs.taxId as string) || '';
+                    const headerText = (rs.headerText as string) || '';
+                    const footerText = (rs.footerText as string) || 'Cảm ơn quý khách!';
+                    const receiptTitle = (rs.receiptTitle as string) ?? 'HÓA ĐƠN BÁN HÀNG';
+
+                    const borderStyle = (rs.borderStyle as string) || 'dashed';
+                    const fontSize = (rs.fontSize as string) || 'medium';
+                    const fontWeightSetting = (rs.fontWeight as string) || 'bold';
+                    const lineHeightSetting = (rs.lineHeight as string) || 'normal';
+                    const paddingSetting = (rs.padding as string) || 'normal';
+                    const titleAlign = (rs.titleAlign as string) || 'center';
+                    const boldTotal = rs.boldTotal !== false;
+
+                    const showLogo = rs.showLogo !== false;
+                    const showTaxId = rs.showTaxId === true;
+                    const showDate = rs.showDate !== false;
+                    const showTime = rs.showTime !== false;
+                    const showCashier = rs.showCashier !== false;
+                    const showCustomer = rs.showCustomer !== false;
+                    const showItemNumber = rs.showItemNumber !== false;
+                    const showSubtotalSetting = rs.showSubtotal !== false;
+                    const showPaymentMethodSetting = rs.showPaymentMethod !== false;
+                    const showChangeSetting = rs.showChange !== false;
+                    const showOrderNote = rs.showOrderNote !== false;
+                    const showPoweredBy = rs.showPoweredBy !== false;
+
+                    const fontSizePx = fontSize === 'small' ? '10px' : fontSize === 'large' ? '14px' : '12px';
+                    const titleSizePx = fontSize === 'small' ? '14px' : fontSize === 'large' ? '18px' : '16px';
+                    const fw = fontWeightSetting === 'normal' ? '400' : fontWeightSetting === 'bolder' ? '700' : '600';
+                    const lh = lineHeightSetting === 'compact' ? '1.2' : lineHeightSetting === 'relaxed' ? '1.8' : '1.5';
+                    const pad = paddingSetting === 'compact' ? '12px' : paddingSetting === 'spacious' ? '24px' : '20px';
+                    const borderCss = `1px ${borderStyle} #ccc`;
+
+                    const orderDate = new Date(selectedOrder.createdAt);
+                    const dateStr = showDate ? (showTime
+                      ? orderDate.toLocaleDateString('vi-VN') + ' ' + orderDate.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+                      : orderDate.toLocaleDateString('vi-VN')
+                    ) : (showTime ? orderDate.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '');
+
+                    return (
+                      <div
+                        className="bg-white border border-gray-200 rounded-xl max-w-[360px] mx-auto overflow-hidden"
+                        style={{ fontFamily: 'Arial, Helvetica, sans-serif', fontSize: fontSizePx, fontWeight: fw, lineHeight: lh, padding: pad }}
+                      >
+                        {/* Shop header */}
+                        <div style={{ textAlign: titleAlign as 'left' | 'center' | 'right', paddingBottom: '8px', borderBottom: borderCss }}>
+                          {showLogo && <div style={{ fontSize: titleSizePx, fontWeight: 700, marginBottom: '2px' }}>{shopName}</div>}
+                          {!showLogo && <div style={{ fontWeight: 700, marginBottom: '2px' }}>{shopName}</div>}
+                          {shopAddress && <div className="text-gray-500">{shopAddress}</div>}
+                          {shopPhone && <div className="text-gray-500">ĐT: {shopPhone}</div>}
+                          {showTaxId && taxId && <div className="text-gray-500">MST: {taxId}</div>}
+                          {headerText && <div className="text-gray-400 italic mt-1">{headerText}</div>}
                         </div>
-                      ))}
-                    </div>
-                    <div className="border-t border-dashed border-gray-300 my-2" />
-                    <div className="space-y-0.5 text-[11px]">
-                      <div className="flex justify-between"><span>Tạm tính:</span><span>{formatCurrency(selectedOrder.subtotal)}</span></div>
-                      {selectedOrder.discount > 0 && (
-                        <div className="flex justify-between text-orange-500"><span>Giảm giá:</span><span>-{formatCurrency(selectedOrder.discount)}</span></div>
-                      )}
-                    </div>
-                    <div className="border-t border-dashed border-gray-300 my-2" />
-                    <div className="flex justify-between font-bold text-sm">
-                      <span>TỔNG CỘNG:</span>
-                      <span>{formatCurrency(selectedOrder.total)}</span>
-                    </div>
-                    <div className="space-y-0.5 text-[11px] mt-1">
-                      <div className="flex justify-between"><span>Thanh toán ({paymentMethodMap[selectedOrder.paymentMethod]}):</span><span>{formatCurrency(selectedOrder.amountPaid)}</span></div>
-                      {selectedOrder.changeAmount > 0 && (
-                        <div className="flex justify-between"><span>Tiền thừa:</span><span>{formatCurrency(selectedOrder.changeAmount)}</span></div>
-                      )}
-                    </div>
-                    <div className="border-t border-dashed border-gray-300 my-2" />
-                    <div className="text-center text-[10px] text-gray-500 space-y-0.5">
-                      <p>Cảm ơn quý khách!</p>
-                      <p>Hẹn gặp lại ♥</p>
-                    </div>
-                  </div>
+
+                        {/* Receipt title */}
+                        {receiptTitle && (
+                          <div style={{ fontSize: titleSizePx, fontWeight: 700, textAlign: titleAlign as 'left' | 'center' | 'right', margin: '8px 0' }}>
+                            {receiptTitle}
+                          </div>
+                        )}
+
+                        {/* Order meta */}
+                        <div className="space-y-0.5" style={{ paddingBottom: '6px' }}>
+                          <div className="flex justify-between"><span>Số HĐ:</span><span style={{ fontWeight: 700 }}>{selectedOrder.orderNumber}</span></div>
+                          {dateStr && <div className="flex justify-between"><span>Ngày:</span><span>{dateStr}</span></div>}
+                          {showCashier && selectedOrder.createdByUser?.name && <div className="flex justify-between"><span>Thu ngân:</span><span>{selectedOrder.createdByUser.name}</span></div>}
+                          {showCustomer && <div className="flex justify-between"><span>KH:</span><span>{selectedOrder.customer?.name || 'Khách lẻ'}</span></div>}
+                        </div>
+
+                        <div style={{ borderTop: borderCss, margin: '6px 0' }} />
+
+                        {/* Items */}
+                        <div style={{ paddingBottom: '6px' }}>
+                          {selectedOrder.items.map((item, i) => (
+                            <div key={i} style={{ marginBottom: '6px' }}>
+                              <div style={{ fontWeight: 700 }}>
+                                {showItemNumber ? `${i + 1}. ` : ''}{item.productName}
+                              </div>
+                              <div className="flex justify-between">
+                                <span>{item.quantity} x {formatCurrency(item.price)}</span>
+                                <span>{formatCurrency(item.total)}</span>
+                              </div>
+                              {item.discount > 0 && (
+                                <div className="flex justify-between text-orange-500">
+                                  <span>&nbsp;&nbsp;Giảm giá:</span>
+                                  <span>-{formatCurrency(item.discount * item.quantity)}</span>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+
+                        <div style={{ borderTop: borderCss, margin: '6px 0' }} />
+
+                        {/* Totals */}
+                        {showSubtotalSetting && (
+                          <div className="flex justify-between"><span>Tạm tính:</span><span>{formatCurrency(selectedOrder.subtotal)}</span></div>
+                        )}
+                        {selectedOrder.discount > 0 && (
+                          <div className="flex justify-between text-orange-500"><span>Giảm giá:</span><span>-{formatCurrency(selectedOrder.discount)}</span></div>
+                        )}
+
+                        <div style={{ borderTop: borderCss, margin: '6px 0' }} />
+
+                        {/* Grand total */}
+                        <div className="flex justify-between" style={{ fontSize: boldTotal ? titleSizePx : fontSizePx, fontWeight: boldTotal ? 700 : parseInt(fw) }}>
+                          <span>TỔNG CỘNG:</span><span>{formatCurrency(selectedOrder.total)}</span>
+                        </div>
+
+                        {showPaymentMethodSetting && (
+                          <div className="flex justify-between">
+                            <span>Thanh toán ({paymentMethodMap[selectedOrder.paymentMethod] || selectedOrder.paymentMethod}):</span>
+                            <span>{formatCurrency(selectedOrder.amountPaid)}</span>
+                          </div>
+                        )}
+                        {showChangeSetting && selectedOrder.changeAmount > 0 && (
+                          <div className="flex justify-between" style={{ fontWeight: 700 }}>
+                            <span>Tiền thừa:</span><span>{formatCurrency(selectedOrder.changeAmount)}</span>
+                          </div>
+                        )}
+
+                        {/* Order note */}
+                        {showOrderNote && selectedOrder.note && (
+                          <>
+                            <div style={{ borderTop: borderCss, margin: '6px 0' }} />
+                            <div className="italic text-gray-500">
+                              <strong>Ghi chú:</strong> {selectedOrder.note}
+                            </div>
+                          </>
+                        )}
+
+                        {/* Footer */}
+                        <div style={{ borderTop: borderCss, margin: '6px 0' }} />
+                        <div style={{ textAlign: titleAlign as 'left' | 'center' | 'right', marginTop: '8px' }}>
+                          {footerText.split('\\n').map((line: string, i: number) => <div key={i} className="text-gray-500">{line}</div>)}
+                          {showPoweredBy && <div className="text-gray-300 mt-1" style={{ fontSize: '9px' }}>— Powered by VinPOS —</div>}
+                        </div>
+                      </div>
+                    );
+                  })()
                 )}
               </div>
 

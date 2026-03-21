@@ -845,38 +845,164 @@ export default function POSPage() {
                 <p className="text-2xl font-extrabold text-green-800 mt-1">{formatCurrency(lastOrder.total as number)}</p>
               </div>
 
-              {/* Mini receipt preview */}
-              <div className="bg-white border border-gray-200 rounded-lg p-4 font-mono text-xs space-y-2">
-                <div className="text-center border-b border-dashed border-gray-300 pb-2">
-                  <p className="font-bold text-sm">VinPOS Demo Store</p>
-                  <p className="text-gray-500">123 Nguyễn Huệ, Q1, HCM</p>
-                  <p className="text-gray-500">ĐT: 0912345678</p>
-                </div>
-                <div className="border-b border-dashed border-gray-300 pb-2 space-y-1">
-                  {(lastOrder.items as Array<{ productName: string; quantity: number; price: number; discount: number; total: number }>).map((item, i) => (
-                    <div key={i} className="flex justify-between">
-                      <span className="truncate flex-1 mr-2">{item.quantity}x {item.productName}</span>
-                      <span>{formatCurrency(item.total)}</span>
+              {/* Mini receipt preview - matches settings 100% */}
+              {(() => {
+                const rs = receiptSettingsRef.current;
+                // Shop info
+                const shopName = (rs.shopName as string) || 'Cửa hàng';
+                const shopAddress = (rs.shopAddress as string) || '';
+                const shopPhone = (rs.shopPhone as string) || '';
+                const taxId = (rs.taxId as string) || '';
+                const headerText = (rs.headerText as string) || '';
+                const footerText = (rs.footerText as string) || 'Cảm ơn quý khách!';
+                const receiptTitle = (rs.receiptTitle as string) ?? 'HÓA ĐƠN BÁN HÀNG';
+
+                // Style settings
+                const borderStyle = (rs.borderStyle as string) || 'dashed';
+                const fontSize = (rs.fontSize as string) || 'medium';
+                const fontWeight = (rs.fontWeight as string) || 'bold';
+                const lineHeightSetting = (rs.lineHeight as string) || 'normal';
+                const paddingSetting = (rs.padding as string) || 'normal';
+                const titleAlign = (rs.titleAlign as string) || 'center';
+                const boldTotal = rs.boldTotal !== false;
+
+                // Show/hide settings
+                const showLogo = rs.showLogo !== false;
+                const showTaxId = rs.showTaxId === true;
+                const showDate = rs.showDate !== false;
+                const showTime = rs.showTime !== false;
+                const showCashier = rs.showCashier !== false;
+                const showCustomer = rs.showCustomer !== false;
+                const showItemNumber = rs.showItemNumber !== false;
+                const showSubtotalSetting = rs.showSubtotal !== false;
+                const showPaymentMethodSetting = rs.showPaymentMethod !== false;
+                const showChangeSetting = rs.showChange !== false;
+                const showOrderNote = rs.showOrderNote !== false;
+                const showPoweredBy = rs.showPoweredBy !== false;
+
+                // Compute styles
+                const fontSizePx = fontSize === 'small' ? '10px' : fontSize === 'large' ? '14px' : '12px';
+                const titleSizePx = fontSize === 'small' ? '14px' : fontSize === 'large' ? '18px' : '16px';
+                const fw = fontWeight === 'normal' ? '400' : fontWeight === 'bolder' ? '700' : '600';
+                const lh = lineHeightSetting === 'compact' ? '1.2' : lineHeightSetting === 'relaxed' ? '1.8' : '1.5';
+                const pad = paddingSetting === 'compact' ? '8px' : paddingSetting === 'spacious' ? '20px' : '16px';
+                const borderCss = `1px ${borderStyle} #ccc`;
+
+                const paymentMethodLabels: Record<string, string> = { cash: 'Tiền mặt', transfer: 'Chuyển khoản', card: 'Thẻ', momo: 'MoMo', zalopay: 'ZaloPay' };
+                const orderDate = lastOrder.createdAt ? new Date(lastOrder.createdAt as string) : new Date();
+                const dateStr = showDate ? (showTime
+                  ? orderDate.toLocaleDateString('vi-VN') + ' ' + orderDate.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+                  : orderDate.toLocaleDateString('vi-VN')
+                ) : (showTime ? orderDate.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '');
+
+                const orderItems = lastOrder.items as Array<{ productName: string; quantity: number; price: number; discount: number; total: number }>;
+
+                return (
+                  <div
+                    className="bg-white border border-gray-200 rounded-lg overflow-hidden"
+                    style={{ fontFamily: 'Arial, Helvetica, sans-serif', fontSize: fontSizePx, fontWeight: fw, lineHeight: lh, padding: pad }}
+                  >
+                    {/* Shop header */}
+                    <div style={{ textAlign: titleAlign as 'left' | 'center' | 'right', paddingBottom: '6px', borderBottom: borderCss }}>
+                      {showLogo && <div style={{ fontSize: titleSizePx, fontWeight: 700, marginBottom: '2px' }}>{shopName}</div>}
+                      {!showLogo && <div style={{ fontWeight: 700, marginBottom: '2px' }}>{shopName}</div>}
+                      {shopAddress && <div className="text-gray-500">{shopAddress}</div>}
+                      {shopPhone && <div className="text-gray-500">ĐT: {shopPhone}</div>}
+                      {showTaxId && taxId && <div className="text-gray-500">MST: {taxId}</div>}
+                      {headerText && <div className="text-gray-400 italic mt-1">{headerText}</div>}
                     </div>
-                  ))}
-                </div>
-                <div className="space-y-0.5">
-                  <div className="flex justify-between"><span>Tạm tính:</span><span>{formatCurrency(lastOrder.subtotal as number)}</span></div>
-                  {(lastOrder.discount as number) > 0 && (
-                    <div className="flex justify-between text-green-600"><span>Giảm giá:</span><span>-{formatCurrency(lastOrder.discount as number)}</span></div>
-                  )}
-                  <div className="flex justify-between font-bold text-sm border-t border-dashed border-gray-300 pt-1">
-                    <span>TỔNG CỘNG:</span><span>{formatCurrency(lastOrder.total as number)}</span>
+
+                    {/* Receipt title */}
+                    {receiptTitle && (
+                      <div style={{ fontSize: titleSizePx, fontWeight: 700, textAlign: titleAlign as 'left' | 'center' | 'right', margin: '6px 0' }}>
+                        {receiptTitle}
+                      </div>
+                    )}
+
+                    {/* Order meta */}
+                    <div className="space-y-0.5" style={{ paddingBottom: '4px' }}>
+                      <div className="flex justify-between"><span>Số HĐ:</span><span>{lastOrder.orderNumber as string}</span></div>
+                      {dateStr && <div className="flex justify-between"><span>Ngày:</span><span>{dateStr}</span></div>}
+                      {showCashier && lastOrder.cashierName && <div className="flex justify-between"><span>Thu ngân:</span><span>{String(lastOrder.cashierName)}</span></div>}
+                      {showCustomer && customerName && <div className="flex justify-between"><span>KH:</span><span>{customerName}</span></div>}
+                    </div>
+
+                    {/* Items divider */}
+                    <div style={{ borderTop: borderCss, margin: '4px 0' }} />
+
+                    {/* Items */}
+                    <div style={{ paddingBottom: '4px' }}>
+                      {orderItems.map((item, i) => (
+                        <div key={i} style={{ marginBottom: '4px' }}>
+                          <div style={{ fontWeight: 700 }}>
+                            {showItemNumber ? `${i + 1}. ` : ''}{item.productName}
+                          </div>
+                          <div className="flex justify-between">
+                            <span>{item.quantity} x {formatCurrency(item.price)}</span>
+                            <span>{formatCurrency(item.total)}</span>
+                          </div>
+                          {item.discount > 0 && (
+                            <div className="flex justify-between text-green-600">
+                              <span>&nbsp;&nbsp;Giảm giá:</span>
+                              <span>-{formatCurrency(item.discount * item.quantity)}</span>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Subtotal divider */}
+                    <div style={{ borderTop: borderCss, margin: '4px 0' }} />
+
+                    {/* Totals */}
+                    <div className="space-y-0.5">
+                      {showSubtotalSetting && (
+                        <div className="flex justify-between"><span>Tạm tính:</span><span>{formatCurrency(lastOrder.subtotal as number)}</span></div>
+                      )}
+                      {(lastOrder.discount as number) > 0 && (
+                        <div className="flex justify-between text-green-600"><span>Giảm giá:</span><span>-{formatCurrency(lastOrder.discount as number)}</span></div>
+                      )}
+                    </div>
+
+                    {/* Total divider */}
+                    <div style={{ borderTop: borderCss, margin: '4px 0' }} />
+
+                    {/* Grand total */}
+                    <div className="flex justify-between" style={{ fontSize: boldTotal ? titleSizePx : fontSizePx, fontWeight: boldTotal ? 700 : parseInt(fw) }}>
+                      <span>TỔNG CỘNG:</span><span>{formatCurrency(lastOrder.total as number)}</span>
+                    </div>
+
+                    {showPaymentMethodSetting && (
+                      <div className="flex justify-between">
+                        <span>Thanh toán ({paymentMethodLabels[(lastOrder.paymentMethod as string)] || (lastOrder.paymentMethod as string)}):</span>
+                        <span>{formatCurrency(lastOrder.amountPaid as number)}</span>
+                      </div>
+                    )}
+                    {showChangeSetting && (lastOrder.changeAmount as number) > 0 && (
+                      <div className="flex justify-between" style={{ fontWeight: 700 }}>
+                        <span>Tiền thừa:</span><span>{formatCurrency(lastOrder.changeAmount as number)}</span>
+                      </div>
+                    )}
+
+                    {/* Order note */}
+                    {showOrderNote && lastOrder.note && (
+                      <>
+                        <div style={{ borderTop: borderCss, margin: '4px 0' }} />
+                        <div className="italic text-gray-500">
+                          <strong>Ghi chú:</strong> {lastOrder.note as string}
+                        </div>
+                      </>
+                    )}
+
+                    {/* Footer */}
+                    <div style={{ borderTop: borderCss, margin: '4px 0' }} />
+                    <div style={{ textAlign: titleAlign as 'left' | 'center' | 'right', marginTop: '6px' }}>
+                      {footerText.split('\\n').map((line: string, i: number) => <div key={i} className="text-gray-500">{line}</div>)}
+                      {showPoweredBy && <div className="text-gray-300 mt-1" style={{ fontSize: '9px' }}>— Powered by VinPOS —</div>}
+                    </div>
                   </div>
-                  <div className="flex justify-between"><span>Khách trả:</span><span>{formatCurrency(lastOrder.amountPaid as number)}</span></div>
-                  {(lastOrder.changeAmount as number) > 0 && (
-                    <div className="flex justify-between font-bold"><span>Tiền thừa:</span><span>{formatCurrency(lastOrder.changeAmount as number)}</span></div>
-                  )}
-                </div>
-                <div className="text-center text-gray-400 pt-1 border-t border-dashed border-gray-300">
-                  <p>Cảm ơn quý khách!</p>
-                </div>
-              </div>
+                );
+              })()}
 
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => setShowReceipt(false)} className="flex-1 rounded-lg">Đóng</Button>
