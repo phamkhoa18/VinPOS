@@ -40,6 +40,7 @@ export default function POSPage() {
   const [showPayment, setShowPayment] = useState(false);
   const [showCustomerPicker, setShowCustomerPicker] = useState(false);
   const [showDiscount, setShowDiscount] = useState<string | null>(null);
+  const [showPriceEdit, setShowPriceEdit] = useState<string | null>(null);
   const [showBillDiscount, setShowBillDiscount] = useState(false);
   const [showNote, setShowNote] = useState(false);
   const [showReceipt, setShowReceipt] = useState(false);
@@ -48,6 +49,7 @@ export default function POSPage() {
   const [customerSearch, setCustomerSearch] = useState('');
   const [processing, setProcessing] = useState(false);
   const [discountInput, setDiscountInput] = useState('');
+  const [priceInput, setPriceInput] = useState('');
   const [discountType, setDiscountType] = useState<'fixed' | 'percent'>('fixed');
   const [billDiscountInput, setBillDiscountInput] = useState('');
   const [billDiscountTypeInput, setBillDiscountTypeInput] = useState<'fixed' | 'percent'>('fixed');
@@ -62,7 +64,7 @@ export default function POSPage() {
     items, customerId, customerName, note, paymentMethod, amountPaid, billDiscount, billDiscountType,
     addItem, removeItem, updateQuantity, setCustomer, setNote,
     setPaymentMethod, setAmountPaid, setBillDiscount, clearCart, getSubtotal, getTotal, getItemCount,
-    updateDiscount, getBillDiscountAmount,
+    updateDiscount, getBillDiscountAmount, updatePrice,
   } = useCartStore();
 
   const receiptSettingsRef = useRef<Record<string, unknown>>({});
@@ -200,6 +202,15 @@ export default function POSPage() {
     toast.success(`Đã giảm ${formatCurrency(discount)}/sp`);
     setShowDiscount(null);
     setDiscountInput('');
+  };
+
+  const handleApplyPriceEdit = (productId: string) => {
+    const val = parseVNInput(priceInput);
+    if (isNaN(val) || val < 0) { toast.error('Số tiền không hợp lệ'); return; }
+    updatePrice(productId, val);
+    toast.success('Đã cập nhật giá mới');
+    setShowPriceEdit(null);
+    setPriceInput('');
   };
 
   const handleCheckout = async () => {
@@ -588,7 +599,16 @@ export default function POSPage() {
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-gray-900 truncate">{item.product.name}</p>
                       <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-xs text-blue-600 font-semibold">{formatCurrency(item.product.price)}</span>
+                        <button
+                          onClick={() => {
+                            setShowPriceEdit(item.product.id);
+                            setPriceInput(formatVNInput(item.product.price));
+                          }}
+                          className="text-xs text-blue-600 font-semibold hover:text-blue-800 hover:underline cursor-pointer focus:outline-none"
+                          title="Sửa giá SP"
+                        >
+                          {formatCurrency(item.product.price)}
+                        </button>
                         {item.discount > 0 && (
                           <span className="text-[10px] text-green-600 bg-green-50 px-1.5 py-0.5 rounded font-medium">
                             -{formatCurrency(item.discount)}
@@ -1087,6 +1107,31 @@ export default function POSPage() {
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => { setShowDiscount(null); setDiscountInput(''); }} className="flex-1 rounded-lg">Hủy</Button>
               <Button onClick={() => showDiscount && handleApplyDiscount(showDiscount)} className="flex-1 bg-green-600 hover:bg-green-700 rounded-lg">Áp dụng</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ====== PRICE EDIT DIALOG ====== */}
+      <Dialog open={!!showPriceEdit} onOpenChange={() => setShowPriceEdit(null)}>
+        <DialogContent className="sm:max-w-xs">
+          <DialogHeader><DialogTitle className="flex items-center gap-2">Chỉnh sửa giá SP</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <Input
+              type="text"
+              inputMode="numeric"
+              value={priceInput ? formatVNInput(parseVNInput(priceInput)) : ''}
+              onChange={e => {
+                const num = parseVNInput(e.target.value);
+                setPriceInput(num ? formatVNInput(num) : '');
+              }}
+              placeholder="Nhập giá mới..."
+              className="h-12 text-lg text-center rounded-lg font-semibold border-blue-200 focus:border-blue-500"
+              autoFocus
+            />
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => { setShowPriceEdit(null); setPriceInput(''); }} className="flex-1 rounded-lg">Hủy</Button>
+              <Button onClick={() => showPriceEdit && handleApplyPriceEdit(showPriceEdit)} className="flex-1 bg-blue-600 hover:bg-blue-700 rounded-lg">Áp dụng</Button>
             </div>
           </div>
         </DialogContent>

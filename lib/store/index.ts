@@ -201,6 +201,7 @@ interface CartState {
   removeItem: (productId: string) => void;
   updateQuantity: (productId: string, quantity: number) => void;
   updateDiscount: (productId: string, discount: number) => void;
+  updatePrice: (productId: string, price: number) => void;
   setCustomer: (id: string | null, name?: string) => void;
   setNote: (note: string) => void;
   setPaymentMethod: (method: string) => void;
@@ -358,6 +359,17 @@ export const useCartStore = create<CartState>()(
         set(updateActiveTab(tabs, activeTabId, {
           items: tab.items.map(i =>
             i.product.id === productId ? { ...i, discount: Math.max(0, discount) } : i
+          ),
+        }));
+      },
+
+      updatePrice: (productId, price) => {
+        const { tabs, activeTabId } = get();
+        const tab = tabs.find(t => t.id === activeTabId);
+        if (!tab) return;
+        set(updateActiveTab(tabs, activeTabId, {
+          items: tab.items.map(i =>
+            i.product.id === productId ? { ...i, product: { ...i.product, price: Math.max(0, price) } } : i
           ),
         }));
       },
