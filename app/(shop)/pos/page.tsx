@@ -11,7 +11,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
@@ -370,7 +369,7 @@ export default function POSPage() {
         </div>
 
         {/* Product Grid */}
-        <ScrollArea className="flex-1 p-2 sm:p-3">
+        <div className="flex-1 overflow-y-auto p-2 sm:p-3">
           {filtered.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-gray-400">
               <QrCode className="w-14 h-14 mb-3 opacity-40" />
@@ -424,7 +423,7 @@ export default function POSPage() {
               })}
             </div>
           )}
-        </ScrollArea>
+        </div>
 
         {/* Bottom Shortcuts Bar - hidden on mobile */}
         <div className="h-10 bg-white border-t border-gray-200 hidden md:flex items-center gap-4 px-4 text-[10px] text-gray-400 font-mono">
@@ -464,7 +463,7 @@ export default function POSPage() {
       <div className={`
         bg-white border-l border-gray-200 flex flex-col
         fixed lg:static bottom-0 left-0 right-0 z-50
-        h-[90vh] lg:h-auto w-full lg:w-[380px] xl:w-[400px]
+        h-[90vh] lg:h-full w-full lg:w-[380px] xl:w-[400px]
         rounded-t-2xl lg:rounded-none shadow-2xl lg:shadow-none
         transition-transform duration-300 ease-out safe-bottom
         ${mobileCartOpen ? 'translate-y-0' : 'translate-y-full lg:translate-y-0'}
@@ -575,7 +574,7 @@ export default function POSPage() {
         </div>
 
         {/* Cart Items */}
-        <ScrollArea className="flex-1">
+        <div className="flex-1 overflow-y-auto min-h-0">
           <div className="p-2 space-y-1">
             {items.length === 0 && (
               <div className="text-center py-16 text-gray-400">
@@ -655,7 +654,7 @@ export default function POSPage() {
               ))}
             </AnimatePresence>
           </div>
-        </ScrollArea>
+        </div>
 
         {/* Note indicator */}
         {note && (
@@ -1048,7 +1047,7 @@ export default function POSPage() {
               <User className="w-4 h-4" />
               <span className="text-sm">Khách lẻ (không chọn)</span>
             </button>
-            <ScrollArea className="max-h-72">
+            <div className="max-h-72 overflow-y-auto">
               <div className="space-y-1">
                 {filteredCustomers.map(c => (
                   <button
@@ -1070,7 +1069,7 @@ export default function POSPage() {
                   </button>
                 ))}
               </div>
-            </ScrollArea>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
